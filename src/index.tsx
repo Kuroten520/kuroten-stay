@@ -1,12 +1,13 @@
 import { Hono } from 'hono'
-import { renderer } from './renderer'
+import { serveStatic } from 'hono/cloudflare-workers'
 
 const app = new Hono()
 
-app.use(renderer)
+// Serve static CSS/JS files
+app.use('/static/*', serveStatic({ root: './' }))
 
-app.get('/', (c) => {
-  return c.render(<h1>Hello!</h1>)
-})
+// Serve index.html for all routes (SPA pattern)
+app.get('/', serveStatic({ path: './index.html' }))
+app.get('/*', serveStatic({ root: './' }))
 
 export default app

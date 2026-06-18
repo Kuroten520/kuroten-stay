@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kuroten Stay Sapporo — 管理画面</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --color-bg: #0d1b2a;
+      --color-bg2: #122035;
+      --color-bg3: #1a2d40;
+      --color-gold: #d4af37;
+      --color-gold2: #b8973a;
+      --color-text: #e8e0d0;
+      --color-text2: rgba(232,224,208,0.65);
+      --color-border: rgba(212,175,55,0.2);
+      --color-sidebar: #0a1520;
+      --color-success: #2ed573;
+      --color-warning: #ffa502;
+      --color-danger: #ff4757;
+      --color-info: #1e90ff;
+      --sidebar-w: 260px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ===== LOGIN ===== */
+    #login-screen {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #0a1520 0%, #0d1b2a 50%, #122035 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .login-box {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--color-border);
+      border-radius: 20px;
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+      backdrop-filter: blur(12px);
+    }
+    .login-logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem;
+      color: var(--color-gold);
+      margin-bottom: 4px;
+    }
+    .login-sub {
+      color: var(--color-text2);
+      font-size: 0.8rem;
+      letter-spacing: 0.15em;
+      margin-bottom: 36px;
+    }
+    .login-field {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+    .login-field label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--color-text2);
+      margin-bottom: 6px;
+    }
+    .login-field input {
+      width: 100%;
+      padding: 11px 14px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.9rem;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    .login-field input:focus {
+      outline: none;
+      border-color: var(--color-gold);
+    }
+    .login-btn {
+      width: 100%;
+      padding: 13px;
+      background: var(--color-gold);
+      color: #0d1b2a;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.2s;
+    }
+    .login-btn:hover { background: #b8973a; color: #fff; }
+    .login-error {
+      color: #ff6b6b;
+      font-size: 0.82rem;
+      margin-top: 10px;
+      min-height: 20px;
+    }
+    .login-hint {
+      color: var(--color-text2);
+      font-size: 0.75rem;
+      margin-top: 16px;
+    }
+
+    /* ===== SIDEBAR ===== */
+    #sidebar {
+      width: var(--sidebar-w);
+      background: var(--color-sidebar);
+      border-right: 1px solid var(--color-border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      left: 0; top: 0; bottom: 0;
+      z-index: 100;
+      transition: transform 0.3s;
+    }
+    .sidebar-logo {
+      padding: 28px 24px 20px;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .sidebar-logo-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.4rem;
+      color: var(--color-gold);
+    }
+    .sidebar-logo-sub {
+      font-size: 0.7rem;
+      color: var(--color-text2);
+      letter-spacing: 0.1em;
+    }
+    .sidebar-nav {
+      flex: 1;
+      padding: 16px 0;
+      overflow-y: auto;
+    }
+    .sidebar-section-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      color: var(--color-text2);
+      padding: 12px 24px 6px;
+      text-transform: uppercase;
+    }
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 24px;
+      color: var(--color-text2);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.88rem;
+      border-left: 3px solid transparent;
+    }
+    .sidebar-item:hover {
+      background: rgba(212,175,55,0.08);
+      color: var(--color-text);
+    }
+    .sidebar-item.active {
+      background: rgba(212,175,55,0.12);
+      color: var(--color-gold);
+      border-left-color: var(--color-gold);
+    }
+    .sidebar-item i { width: 18px; text-align: center; font-size: 0.9rem; }
+    .sidebar-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--color-border);
+    }
+    .sidebar-logout {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--color-text2);
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: color 0.2s;
+      background: none;
+      border: none;
+      width: 100%;
+      font-family: inherit;
+    }
+    .sidebar-logout:hover { color: #ff6b6b; }
+
+    /* ===== MAIN CONTENT ===== */
+    #main-content {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    .topbar {
+      background: var(--color-bg2);
+      border-bottom: 1px solid var(--color-border);
+      padding: 0 28px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .topbar-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .topbar-admin {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--color-text2);
+      font-size: 0.85rem;
+    }
+    .topbar-admin-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--color-gold), #b8973a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #0d1b2a;
+    }
+
+    /* ===== PAGE SECTIONS ===== */
+    .page-section {
+      display: none;
+      padding: 28px;
+      flex: 1;
+    }
+    .page-section.active { display: block; }
+
+    /* ===== CARDS ===== */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--color-bg2);
+      border: 1px solid var(--color-border);
+      border-radius: 14px;
+      padding: 22px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--color-gold);
+    }
+    .stat-label { font-size: 0.78rem; color: var(--color-text2); margin-bottom: 8px; }
+    .stat-value { font-size: 2.2rem; font-weight: 700; color: var(--color-gold); line-height: 1; }
+    .stat-sub { font-size: 0.75rem; color: var(--color-text2); margin-top: 6px; }
+
+    .chart-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+    .chart-card {
+      background: var(--color-bg2);
+      border: 1px solid var(--color-border);
+      border-radius: 14px;
+      padding: 20px;
+    }
+    .chart-card-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--color-text);
+      margin-bottom: 16px;
+    }
+
+    /* ===== TABLE ===== */
+    .section-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .section-title { font-size: 1.1rem; font-weight: 600; }
+    .btn {
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-family: inherit;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-gold { background: var(--color-gold); color: #0d1b2a; }
+    .btn-gold:hover { background: var(--color-gold2); color: #fff; }
+    .btn-outline { background: transparent; border: 1px solid var(--color-border); color: var(--color-text2); }
+    .btn-outline:hover { border-color: var(--color-gold); color: var(--color-gold); }
+    .btn-danger { background: rgba(255,71,87,0.15); color: var(--color-danger); border: 1px solid rgba(255,71,87,0.3); }
+    .btn-danger:hover { background: rgba(255,71,87,0.25); }
+    .btn-sm { padding: 5px 12px; font-size: 0.78rem; }
+
+    .filters-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .filter-select, .filter-input {
+      padding: 8px 12px;
+      background: var(--color-bg3);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      color: var(--color-text);
+      font-size: 0.82rem;
+      font-family: inherit;
+    }
+    .filter-select:focus, .filter-input:focus {
+      outline: none;
+      border-color: var(--color-gold);
+    }
+    .filter-input { min-width: 220px; }
+
+    .table-wrap {
+      background: var(--color-bg2);
+      border: 1px solid var(--color-border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: var(--color-bg3); }
+    th {
+      padding: 13px 16px;
+      text-align: left;
+      font-size: 0.75rem;
+      color: var(--color-text2);
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--color-border);
+      white-space: nowrap;
+    }
+    td {
+      padding: 13px 16px;
+      font-size: 0.85rem;
+      border-bottom: 1px solid rgba(212,175,55,0.08);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(212,175,55,0.04); }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .badge-pending  { background: rgba(255,165,2,0.2);  color: var(--color-warning); }
+    .badge-confirmed{ background: rgba(46,213,115,0.2); color: var(--color-success); }
+    .badge-checkin  { background: rgba(30,144,255,0.2); color: var(--color-info); }
+    .badge-checkout { background: rgba(150,150,150,0.2);color: #aaa; }
+    .badge-cancelled{ background: rgba(255,71,87,0.2);  color: var(--color-danger); }
+    .badge-resolved { background: rgba(46,213,115,0.15);color: var(--color-success); }
+    .badge-open     { background: rgba(255,165,2,0.15); color: var(--color-warning); }
+    .badge-active   { background: rgba(46,213,115,0.15);color: var(--color-success); }
+    .badge-inactive { background: rgba(150,150,150,0.15);color: #888; }
+    .badge-admin    { background: rgba(212,175,55,0.2); color: var(--color-gold); }
+    .badge-user     { background: rgba(30,144,255,0.15);color: var(--color-info); }
+
+    .actions-cell { display: flex; gap: 6px; }
+
+    .pagination {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 16px;
+      border-top: 1px solid var(--color-border);
+      font-size: 0.82rem;
+      color: var(--color-text2);
+    }
+    .page-btn {
+      padding: 5px 10px;
+      background: var(--color-bg3);
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      color: var(--color-text2);
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .page-btn:hover, .page-btn.active {
+      background: var(--color-gold);
+      color: #0d1b2a;
+      border-color: var(--color-gold);
+    }
+
+    /* ===== PROPERTY CARDS ===== */
+    .property-admin-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+    .property-admin-card {
+      background: var(--color-bg2);
+      border: 1px solid var(--color-border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .property-admin-img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+    }
+    .property-admin-body { padding: 18px; }
+    .property-admin-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--color-gold);
+      font-family: 'Cormorant Garamond', serif;
+      margin-bottom: 6px;
+    }
+    .property-admin-meta {
+      font-size: 0.82rem;
+      color: var(--color-text2);
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .property-admin-meta span { display: flex; align-items: center; gap: 5px; }
+    .property-admin-actions { display: flex; gap: 8px; }
+
+    /* ===== QUICK ACTIONS ===== */
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .quick-action-btn {
+      background: var(--color-bg2);
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: var(--color-text2);
+      font-size: 0.82rem;
+      font-family: inherit;
+    }
+    .quick-action-btn:hover {
+      border-color: var(--color-gold);
+      color: var(--color-gold);
+      background: rgba(212,175,55,0.05);
+    }
+    .quick-action-btn i { display: block; font-size: 1.4rem; margin-bottom: 8px; color: var(--color-gold); }
+
+    /* ===== INQUIRY DETAIL ===== */
+    .inquiry-detail {
+      background: var(--color-bg2);
+      border: 1px solid var(--color-border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-top: 16px;
+    }
+    .inquiry-meta { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; }
+    .inquiry-meta-item { font-size: 0.83rem; color: var(--color-text2); }
+    .inquiry-meta-item strong { color: var(--color-text); }
+    .inquiry-message {
+      background: rgba(255,255,255,0.04);
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 0.88rem;
+      line-height: 1.7;
+      margin-bottom: 16px;
+      white-space: pre-wrap;
+    }
+    .inquiry-reply textarea {
+      width: 100%;
+      min-height: 100px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.88rem;
+      font-family: inherit;
+      padding: 12px;
+      resize: vertical;
+      margin-bottom: 10px;
+    }
+    .inquiry-reply textarea:focus {
+      outline: none;
+      border-color: var(--color-gold);
+    }
+
+    /* ===== TOAST ===== */
+    .admin-toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: var(--color-bg3);
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      padding: 13px 20px;
+      color: var(--color-text);
+      font-size: 0.85rem;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      transform: translateX(120%);
+      transition: transform 0.3s;
+    }
+    .admin-toast.show { transform: translateX(0); }
+    .admin-toast.success { border-color: rgba(46,213,115,0.4); }
+    .admin-toast.success i { color: var(--color-success); }
+    .admin-toast.error { border-color: rgba(255,71,87,0.4); }
+    .admin-toast.error i { color: var(--color-danger); }
+
+    /* ===== MOBILE ===== */
+    .hamburger-admin {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--color-text);
+      font-size: 1.3rem;
+      cursor: pointer;
+    }
+
+    @media (max-width: 1024px) {
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+      .chart-row { grid-template-columns: 1fr; }
+      .property-admin-grid { grid-template-columns: 1fr; }
+      .quick-actions { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+      #sidebar {
+        transform: translateX(-100%);
+      }
+      #sidebar.open {
+        transform: translateX(0);
+      }
+      #main-content {
+        margin-left: 0;
+      }
+      .hamburger-admin { display: block; }
+      .stat-grid { grid-template-columns: 1fr 1fr; }
+      .page-section { padding: 16px; }
+      .topbar { padding: 0 16px; }
+    }
+    @media (max-width: 480px) {
+      .stat-grid { grid-template-columns: 1fr; }
+      .quick-actions { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== LOGIN ===== -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">Kuroten</div>
+    <div class="login-sub">ADMIN PANEL</div>
+    <div class="login-field">
+      <label>メールアドレス</label>
+      <input type="email" id="login-email" placeholder="admin@example.com" value="admin@kuroten.jp">
+    </div>
+    <div class="login-field">
+      <label>パスワード</label>
+      <input type="password" id="login-password" placeholder="••••••••" value="admin123">
+    </div>
+    <button class="login-btn" onclick="doLogin()">
+      <i class="fas fa-sign-in-alt" style="margin-right:6px"></i> ログイン
+    </button>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-hint">デモ用: admin@kuroten.jp / admin123</div>
+  </div>
+</div>
+
+<!-- ===== SIDEBAR ===== -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-text">Kuroten</div>
+    <div class="sidebar-logo-sub">MANAGEMENT SYSTEM</div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="sidebar-section-label">メイン</div>
+    <div class="sidebar-item active" data-page="dashboard" onclick="navigate('dashboard', this)">
+      <i class="fas fa-th-large"></i> ダッシュボード
+    </div>
+    <div class="sidebar-item" data-page="bookings" onclick="navigate('bookings', this)">
+      <i class="fas fa-calendar-check"></i> 予約管理
+      <span style="margin-left:auto;background:rgba(212,175,55,0.2);color:var(--color-gold);padding:2px 8px;border-radius:20px;font-size:0.72rem;">12</span>
+    </div>
+    <div class="sidebar-section-label">コンテンツ</div>
+    <div class="sidebar-item" data-page="inquiries" onclick="navigate('inquiries', this)">
+      <i class="fas fa-envelope"></i> 問い合わせ
+      <span style="margin-left:auto;background:rgba(255,165,2,0.2);color:var(--color-warning);padding:2px 8px;border-radius:20px;font-size:0.72rem;">3</span>
+    </div>
+    <div class="sidebar-item" data-page="properties" onclick="navigate('properties', this)">
+      <i class="fas fa-home"></i> 物件管理
+    </div>
+    <div class="sidebar-section-label">システム</div>
+    <div class="sidebar-item" data-page="users" onclick="navigate('users', this)">
+      <i class="fas fa-users"></i> ユーザー一覧
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <button class="sidebar-logout" onclick="doLogout()">
+      <i class="fas fa-sign-out-alt"></i> ログアウト
+    </button>
+  </div>
+</nav>
+
+<!-- ===== MAIN ===== -->
+<div id="main-content">
+  <header class="topbar">
+    <div style="display:flex;align-items:center;gap:14px;">
+      <button class="hamburger-admin" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+      </button>
+      <div class="topbar-title" id="topbar-title">ダッシュボード</div>
+    </div>
+    <div class="topbar-right">
+      <span style="font-size:0.8rem;color:var(--color-text2);" id="topbar-date"></span>
+      <div class="topbar-admin">
+        <div class="topbar-admin-avatar">K</div>
+        <span>Admin</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== DASHBOARD ===== -->
+  <section class="page-section active" id="page-dashboard">
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">今月の予約数</div>
+        <div class="stat-value">47</div>
+        <div class="stat-sub"><i class="fas fa-arrow-up" style="color:var(--color-success)"></i> 前月比 +12%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">稼働率（平均）</div>
+        <div class="stat-value">78<span style="font-size:1rem">%</span></div>
+        <div class="stat-sub">4施設合計</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">今月売上（万円）</div>
+        <div class="stat-value">186</div>
+        <div class="stat-sub"><i class="fas fa-arrow-up" style="color:var(--color-success)"></i> 前月比 +8%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">未対応問い合わせ</div>
+        <div class="stat-value" style="color:var(--color-warning)">3</div>
+        <div class="stat-sub">要対応</div>
+      </div>
+    </div>
+
+    <div class="quick-actions">
+      <button class="quick-action-btn" onclick="navigate('bookings',document.querySelector('[data-page=bookings]'))">
+        <i class="fas fa-plus-circle"></i>
+        新規予約登録
+      </button>
+      <button class="quick-action-btn" onclick="navigate('inquiries',document.querySelector('[data-page=inquiries]'))">
+        <i class="fas fa-envelope-open"></i>
+        問い合わせ確認
+      </button>
+      <button class="quick-action-btn" onclick="navigate('properties',document.querySelector('[data-page=properties]'))">
+        <i class="fas fa-edit"></i>
+        物件情報編集
+      </button>
+      <button class="quick-action-btn" onclick="window.open('/','_blank')">
+        <i class="fas fa-external-link-alt"></i>
+        サイト表示
+      </button>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-card">
+        <div class="chart-card-title">月別予約数推移</div>
+        <canvas id="bookings-chart" height="200"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title">施設別稼働率</div>
+        <canvas id="occupancy-chart" height="200"></canvas>
+      </div>
+    </div>
+
+    <!-- Recent Bookings -->
+    <div class="section-header-row">
+      <div class="section-title">最近の予約</div>
+      <button class="btn btn-outline btn-sm" onclick="navigate('bookings',document.querySelector('[data-page=bookings]'))">すべて見る</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>予約番号</th><th>ゲスト名</th><th>施設</th><th>チェックイン</th><th>チェックアウト</th><th>ステータス</th>
+          </tr>
+        </thead>
+        <tbody id="recent-bookings-tbody">
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== BOOKINGS ===== -->
+  <section class="page-section" id="page-bookings">
+    <div class="section-header-row">
+      <div class="section-title">予約管理</div>
+      <button class="btn btn-gold btn-sm"><i class="fas fa-plus"></i> 新規予約</button>
+    </div>
+    <div class="filters-row">
+      <select class="filter-select" id="booking-status-filter" onchange="filterBookings()">
+        <option value="">すべてのステータス</option>
+        <option value="pending">未確認</option>
+        <option value="confirmed">確認済</option>
+        <option value="checked_in">チェックイン中</option>
+        <option value="checked_out">チェックアウト済</option>
+        <option value="cancelled">キャンセル</option>
+      </select>
+      <select class="filter-select" id="booking-property-filter" onchange="filterBookings()">
+        <option value="">すべての施設</option>
+        <option value="THE SUN">THE SUN</option>
+        <option value="THE MOON">THE MOON</option>
+        <option value="THE SMILE">THE SMILE</option>
+        <option value="THE SKY">THE SKY</option>
+      </select>
+      <input class="filter-input" type="text" placeholder="ゲスト名・予約番号で検索..." id="booking-search" oninput="filterBookings()">
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>予約番号</th><th>ゲスト名</th><th>連絡先</th><th>施設</th><th>人数</th><th>チェックイン</th><th>チェックアウト</th><th>金額</th><th>ステータス</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="bookings-tbody"></tbody>
+      </table>
+      <div class="pagination">
+        <span id="bookings-count"></span>
+        <span style="flex:1"></span>
+        <button class="page-btn active">1</button>
+        <button class="page-btn">2</button>
+        <button class="page-btn">3</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== INQUIRIES ===== -->
+  <section class="page-section" id="page-inquiries">
+    <div class="section-header-row">
+      <div class="section-title">問い合わせ管理</div>
+      <span id="inquiry-open-badge" style="background:rgba(255,165,2,0.2);color:var(--color-warning);padding:4px 12px;border-radius:20px;font-size:0.8rem;"></span>
+    </div>
+    <div class="filters-row">
+      <select class="filter-select" id="inquiry-status-filter" onchange="filterInquiries()">
+        <option value="">すべて</option>
+        <option value="open">未対応</option>
+        <option value="resolved">対応済</option>
+      </select>
+      <input class="filter-input" type="text" placeholder="名前・メールで検索..." id="inquiry-search" oninput="filterInquiries()">
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>受信日時</th><th>名前</th><th>メール</th><th>件名</th><th>ステータス</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="inquiries-tbody"></tbody>
+      </table>
+    </div>
+    <div id="inquiry-detail-wrap"></div>
+  </section>
+
+  <!-- ===== PROPERTIES ===== -->
+  <section class="page-section" id="page-properties">
+    <div class="section-header-row">
+      <div class="section-title">物件管理</div>
+    </div>
+    <div class="property-admin-grid" id="properties-grid"></div>
+  </section>
+
+  <!-- ===== USERS ===== -->
+  <section class="page-section" id="page-users">
+    <div class="section-header-row">
+      <div class="section-title">ユーザー一覧</div>
+      <span id="users-count-badge" style="color:var(--color-text2);font-size:0.85rem;"></span>
+    </div>
+    <div class="filters-row">
+      <select class="filter-select" id="user-role-filter" onchange="filterUsers()">
+        <option value="">すべての権限</option>
+        <option value="admin">管理者</option>
+        <option value="user">一般</option>
+      </select>
+      <input class="filter-input" type="text" placeholder="名前・メールで検索..." id="user-search" oninput="filterUsers()">
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th><th>名前</th><th>メール</th><th>権限</th><th>登録日</th><th>最終ログイン</th><th>予約数</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="users-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- TOAST -->
+<div class="admin-toast" id="admin-toast">
+  <i class="fas fa-check-circle"></i>
+  <span id="admin-toast-msg"></span>
+</div>
+
+<script>
+// ===== DATA =====
+const DEMO_BOOKINGS = [
+  { id:'KR-2025-001', guest:'山田 太郎', email:'yamada@example.com', property:'THE SUN', guests:6, checkin:'2025-07-01', checkout:'2025-07-04', amount:96000, status:'confirmed' },
+  { id:'KR-2025-002', guest:'佐藤 花子', email:'sato@example.com', property:'THE MOON', guests:8, checkin:'2025-07-03', checkout:'2025-07-06', amount:112000, status:'pending' },
+  { id:'KR-2025-003', guest:'鈴木 一郎', email:'suzuki@example.com', property:'THE SMILE', guests:4, checkin:'2025-06-28', checkout:'2025-07-01', amount:78000, status:'checked_out' },
+  { id:'KR-2025-004', guest:'田中 美咲', email:'tanaka@example.com', property:'THE SKY', guests:3, checkin:'2025-07-05', checkout:'2025-07-07', amount:52000, status:'confirmed' },
+  { id:'KR-2025-005', guest:'伊藤 健太', email:'ito@example.com', property:'THE SUN', guests:11, checkin:'2025-07-08', checkout:'2025-07-12', amount:184000, status:'pending' },
+  { id:'KR-2025-006', guest:'渡辺 さくら', email:'watanabe@example.com', property:'THE MOON', guests:5, checkin:'2025-06-25', checkout:'2025-06-28', amount:90000, status:'checked_out' },
+  { id:'KR-2025-007', guest:'中村 浩二', email:'nakamura@example.com', property:'THE SMILE', guests:7, checkin:'2025-07-10', checkout:'2025-07-14', amount:128000, status:'confirmed' },
+  { id:'KR-2025-008', guest:'小林 愛', email:'kobayashi@example.com', property:'THE SKY', guests:2, checkin:'2025-07-02', checkout:'2025-07-04', amount:36000, status:'cancelled' },
+  { id:'KR-2025-009', guest:'加藤 博', email:'kato@example.com', property:'THE SUN', guests:9, checkin:'2025-07-15', checkout:'2025-07-18', amount:144000, status:'confirmed' },
+  { id:'KR-2025-010', guest:'吉田 京子', email:'yoshida@example.com', property:'THE MOON', guests:12, checkin:'2025-07-20', checkout:'2025-07-25', amount:250000, status:'pending' },
+  { id:'KR-2025-011', guest:'山本 誠', email:'yamamoto@example.com', property:'THE SMILE', guests:6, checkin:'2025-07-22', checkout:'2025-07-25', amount:102000, status:'confirmed' },
+  { id:'KR-2025-012', guest:'松本 りな', email:'matsumoto@example.com', property:'THE SKY', guests:4, checkin:'2025-07-28', checkout:'2025-07-31', amount:72000, status:'pending' },
+];
+const DEMO_INQUIRIES = [
+  { id:1, name:'Wang Lei', email:'wlei@example.com', subject:'駐車場について（THE SUN）', message:'THE SUNに3泊予定です。車2台で行くのですが駐車場はありますか？近隣の駐車場も教えていただけますか？', date:'2025-06-15 14:23', status:'open' },
+  { id:2, name:'김민준', email:'kmj@example.com', subject:'早期チェックインの相談', message:'6月28日にチェックイン予定ですが、午前11時頃到着予定です。早めにチェックインできますか？荷物だけでも預けられますか？', date:'2025-06-14 09:11', status:'open' },
+  { id:3, name:'田中 義春', email:'tanaka.y@example.com', subject:'アレルギー対応について', message:'THE SMILEを予約予定です。子供が犬アレルギーです。これまでにペット同伴者の宿泊実績はありますか？', date:'2025-06-13 17:45', status:'open' },
+  { id:4, name:'Smith Family', email:'smith@example.com', subject:'Birthday party possible?', message:'We would like to celebrate our daughters birthday at your property. Is it possible to bring decorations?', date:'2025-06-10 11:30', status:'resolved' },
+  { id:5, name:'李 美玲', email:'li.mei@example.com', subject:'中文服务咨询', message:'请问是否有会说中文的工作人员？需要帮助安排行程。', date:'2025-06-08 20:14', status:'resolved' },
+];
+const DEMO_USERS = [
+  { id:1, name:'Admin', email:'admin@kuroten.jp', role:'admin', registered:'2025-01-01', lastLogin:'2025-06-18', bookings:0 },
+  { id:2, name:'山田 太郎', email:'yamada@example.com', role:'user', registered:'2025-03-15', lastLogin:'2025-06-17', bookings:3 },
+  { id:3, name:'佐藤 花子', email:'sato@example.com', role:'user', registered:'2025-04-02', lastLogin:'2025-06-15', bookings:1 },
+  { id:4, name:'鈴木 一郎', email:'suzuki@example.com', role:'user', registered:'2025-04-20', lastLogin:'2025-06-10', bookings:2 },
+  { id:5, name:'田中 美咲', email:'tanaka@example.com', role:'user', registered:'2025-05-01', lastLogin:'2025-06-18', bookings:1 },
+  { id:6, name:'Wang Lei', email:'wlei@example.com', role:'user', registered:'2025-05-12', lastLogin:'2025-06-14', bookings:0 },
+  { id:7, name:'Smith Family', email:'smith@example.com', role:'user', registered:'2025-05-20', lastLogin:'2025-06-08', bookings:1 },
+];
+const PROPERTIES = [
+  { name:'THE SUN', location:'豊平区美園6条7丁目1-7', capacity:11, rooms:4, img:'https://www.genspark.ai/api/files/s/K59E9l7m', status:'active', bookingsThisMonth:15 },
+  { name:'THE MOON', location:'豊平区美園6条7丁目', capacity:12, rooms:4, img:'https://www.genspark.ai/api/files/s/U79RlOAt', status:'active', bookingsThisMonth:12 },
+  { name:'THE SMILE', location:'東区北8条東16丁目', capacity:10, rooms:4, img:'https://www.genspark.ai/api/files/s/LP6yMCRj', status:'active', bookingsThisMonth:10 },
+  { name:'THE SKY', location:'東区北9条東11丁目', capacity:10, rooms:2, img:'https://www.genspark.ai/api/files/s/CWWCQbTG', status:'active', bookingsThisMonth:10 },
+];
+
+// ===== STATE =====
+let isLoggedIn = false;
+let filteredBookings = [...DEMO_BOOKINGS];
+let filteredInquiries = [...DEMO_INQUIRIES];
+let filteredUsers = [...DEMO_USERS];
+
+// ===== LOGIN =====
+function doLogin() {
+  const email = document.getElementById('login-email').value;
+  const pw = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  if (email === 'admin@kuroten.jp' && pw === 'admin123') {
+    document.getElementById('login-screen').style.display = 'none';
+    isLoggedIn = true;
+    initDashboard();
+  } else {
+    errEl.textContent = 'メールアドレスまたはパスワードが正しくありません。';
+  }
+}
+document.getElementById('login-password').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+function doLogout() {
+  document.getElementById('login-screen').style.display = 'flex';
+  isLoggedIn = false;
+}
+
+// ===== NAVIGATION =====
+function navigate(page, el) {
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  if (el) el.classList.add('active');
+  const titles = { dashboard:'ダッシュボード', bookings:'予約管理', inquiries:'問い合わせ管理', properties:'物件管理', users:'ユーザー一覧' };
+  document.getElementById('topbar-title').textContent = titles[page] || page;
+  // Close sidebar on mobile
+  if (window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ===== INIT =====
+function initDashboard() {
+  setTopbarDate();
+  renderRecentBookings();
+  renderBookings();
+  renderInquiries();
+  renderProperties();
+  renderUsers();
+  initCharts();
+}
+
+function setTopbarDate() {
+  const now = new Date();
+  document.getElementById('topbar-date').textContent = now.toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
+}
+
+// ===== STATUS BADGES =====
+function statusBadge(s) {
+  const map = {
+    pending:   '<span class="badge badge-pending">未確認</span>',
+    confirmed: '<span class="badge badge-confirmed">確認済</span>',
+    checked_in:'<span class="badge badge-checkin">滞在中</span>',
+    checked_out:'<span class="badge badge-checkout">CO済</span>',
+    cancelled: '<span class="badge badge-cancelled">キャンセル</span>',
+  };
+  return map[s] || `<span class="badge">${s}</span>`;
+}
+
+// ===== BOOKINGS =====
+function renderRecentBookings() {
+  const tbody = document.getElementById('recent-bookings-tbody');
+  const recent = DEMO_BOOKINGS.slice(0,5);
+  tbody.innerHTML = recent.map(b => `
+    <tr>
+      <td><code style="color:var(--color-gold);font-size:0.8rem">${b.id}</code></td>
+      <td>${b.guest}</td>
+      <td>${b.property}</td>
+      <td>${b.checkin}</td>
+      <td>${b.checkout}</td>
+      <td>${statusBadge(b.status)}</td>
+    </tr>
+  `).join('');
+}
+
+function renderBookings() {
+  const tbody = document.getElementById('bookings-tbody');
+  tbody.innerHTML = filteredBookings.map(b => `
+    <tr>
+      <td><code style="color:var(--color-gold);font-size:0.78rem">${b.id}</code></td>
+      <td>${b.guest}</td>
+      <td style="font-size:0.78rem;color:var(--color-text2)">${b.email}</td>
+      <td>${b.property}</td>
+      <td>${b.guests}名</td>
+      <td>${b.checkin}</td>
+      <td>${b.checkout}</td>
+      <td>¥${b.amount.toLocaleString()}</td>
+      <td>${statusBadge(b.status)}</td>
+      <td>
+        <div class="actions-cell">
+          <button class="btn btn-outline btn-sm" onclick="changeStatus('${b.id}')"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-danger btn-sm" onclick="cancelBooking('${b.id}')"><i class="fas fa-times"></i></button>
+        </div>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--color-text2);padding:30px">予約が見つかりません</td></tr>';
+  document.getElementById('bookings-count').textContent = `全 ${filteredBookings.length} 件`;
+}
+
+function filterBookings() {
+  const status = document.getElementById('booking-status-filter').value;
+  const property = document.getElementById('booking-property-filter').value;
+  const search = document.getElementById('booking-search').value.toLowerCase();
+  filteredBookings = DEMO_BOOKINGS.filter(b =>
+    (!status || b.status === status) &&
+    (!property || b.property === property) &&
+    (!search || b.guest.toLowerCase().includes(search) || b.id.toLowerCase().includes(search))
+  );
+  renderBookings();
+}
+
+function changeStatus(id) {
+  const statuses = ['pending','confirmed','checked_in','checked_out','cancelled'];
+  const b = DEMO_BOOKINGS.find(x => x.id === id);
+  if (!b) return;
+  const next = statuses[(statuses.indexOf(b.status) + 1) % statuses.length];
+  b.status = next;
+  filterBookings();
+  showToast('ステータスを更新しました', 'success');
+}
+
+function cancelBooking(id) {
+  if (!confirm('この予約をキャンセルしますか？')) return;
+  const b = DEMO_BOOKINGS.find(x => x.id === id);
+  if (b) b.status = 'cancelled';
+  filterBookings();
+  showToast('予約をキャンセルしました', 'success');
+}
+
+// ===== INQUIRIES =====
+function renderInquiries() {
+  const open = filteredInquiries.filter(i => i.status === 'open').length;
+  document.getElementById('inquiry-open-badge').textContent = `未対応 ${open} 件`;
+  const tbody = document.getElementById('inquiries-tbody');
+  tbody.innerHTML = filteredInquiries.map(i => `
+    <tr>
+      <td style="font-size:0.8rem;color:var(--color-text2)">${i.date}</td>
+      <td>${i.name}</td>
+      <td style="font-size:0.8rem;color:var(--color-text2)">${i.email}</td>
+      <td>${i.subject}</td>
+      <td>${i.status === 'open'
+        ? '<span class="badge badge-open">未対応</span>'
+        : '<span class="badge badge-resolved">対応済</span>'}</td>
+      <td>
+        <div class="actions-cell">
+          <button class="btn btn-outline btn-sm" onclick="showInquiry(${i.id})"><i class="fas fa-eye"></i> 詳細</button>
+          ${i.status === 'open' ? `<button class="btn btn-gold btn-sm" onclick="resolveInquiry(${i.id})">対応済にする</button>` : ''}
+        </div>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--color-text2);padding:30px">問い合わせが見つかりません</td></tr>';
+}
+
+function filterInquiries() {
+  const status = document.getElementById('inquiry-status-filter').value;
+  const search = document.getElementById('inquiry-search').value.toLowerCase();
+  filteredInquiries = DEMO_INQUIRIES.filter(i =>
+    (!status || i.status === status) &&
+    (!search || i.name.toLowerCase().includes(search) || i.email.toLowerCase().includes(search))
+  );
+  renderInquiries();
+}
+
+function showInquiry(id) {
+  const i = DEMO_INQUIRIES.find(x => x.id === id);
+  if (!i) return;
+  const wrap = document.getElementById('inquiry-detail-wrap');
+  wrap.innerHTML = `
+    <div class="inquiry-detail">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="font-size:1rem">📨 ${i.subject}</h3>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('inquiry-detail-wrap').innerHTML=''">閉じる</button>
+      </div>
+      <div class="inquiry-meta">
+        <div class="inquiry-meta-item"><strong>差出人:</strong> ${i.name}</div>
+        <div class="inquiry-meta-item"><strong>メール:</strong> ${i.email}</div>
+        <div class="inquiry-meta-item"><strong>受信:</strong> ${i.date}</div>
+      </div>
+      <div class="inquiry-message">${i.message}</div>
+      ${i.status === 'open' ? `
+        <div class="inquiry-reply">
+          <textarea placeholder="返信メッセージを入力..."></textarea>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-gold" onclick="resolveInquiry(${i.id})"><i class="fas fa-paper-plane"></i> 送信して対応済みにする</button>
+            <button class="btn btn-outline btn-sm" onclick="resolveInquiry(${i.id})">対応済みのみ</button>
+          </div>
+        </div>
+      ` : '<p style="color:var(--color-success);font-size:0.85rem"><i class="fas fa-check-circle"></i> 対応済みです</p>'}
+    </div>
+  `;
+  wrap.scrollIntoView({ behavior: 'smooth' });
+}
+
+function resolveInquiry(id) {
+  const i = DEMO_INQUIRIES.find(x => x.id === id);
+  if (i) i.status = 'resolved';
+  filterInquiries();
+  document.getElementById('inquiry-detail-wrap').innerHTML = '';
+  showToast('問い合わせを対応済みにしました', 'success');
+}
+
+// ===== PROPERTIES =====
+function renderProperties() {
+  const grid = document.getElementById('properties-grid');
+  grid.innerHTML = PROPERTIES.map(p => `
+    <div class="property-admin-card">
+      <img src="${p.img}" alt="${p.name}" class="property-admin-img" loading="lazy">
+      <div class="property-admin-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div class="property-admin-name">${p.name}</div>
+          <span class="badge badge-active">稼働中</span>
+        </div>
+        <div class="property-admin-meta">
+          <span><i class="fas fa-map-marker-alt"></i> ${p.location}</span>
+          <span><i class="fas fa-users"></i> 最大${p.capacity}名</span>
+          <span><i class="fas fa-door-open"></i> ${p.rooms}部屋</span>
+          <span><i class="fas fa-calendar-check"></i> 今月${p.bookingsThisMonth}件</span>
+        </div>
+        <div class="property-admin-actions">
+          <button class="btn btn-outline btn-sm" onclick="showToast('${p.name}の編集画面（実装予定）','success')"><i class="fas fa-edit"></i> 編集</button>
+          <button class="btn btn-outline btn-sm" onclick="window.open('/','_blank')"><i class="fas fa-eye"></i> 表示</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ===== USERS =====
+function renderUsers() {
+  document.getElementById('users-count-badge').textContent = `全 ${filteredUsers.length} 名`;
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = filteredUsers.map(u => `
+    <tr>
+      <td style="color:var(--color-text2);font-size:0.8rem">#${u.id}</td>
+      <td>${u.name}</td>
+      <td style="font-size:0.8rem;color:var(--color-text2)">${u.email}</td>
+      <td>${u.role === 'admin'
+        ? '<span class="badge badge-admin">管理者</span>'
+        : '<span class="badge badge-user">一般</span>'}</td>
+      <td style="font-size:0.8rem;color:var(--color-text2)">${u.registered}</td>
+      <td style="font-size:0.8rem;color:var(--color-text2)">${u.lastLogin}</td>
+      <td>${u.bookings}</td>
+      <td>
+        <div class="actions-cell">
+          <button class="btn btn-outline btn-sm" onclick="showToast('${u.name}の詳細（実装予定）','success')"><i class="fas fa-user"></i></button>
+          ${u.role !== 'admin' ? `<button class="btn btn-danger btn-sm" onclick="showToast('アカウントを無効化しました','success')"><i class="fas fa-ban"></i></button>` : ''}
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterUsers() {
+  const role = document.getElementById('user-role-filter').value;
+  const search = document.getElementById('user-search').value.toLowerCase();
+  filteredUsers = DEMO_USERS.filter(u =>
+    (!role || u.role === role) &&
+    (!search || u.name.toLowerCase().includes(search) || u.email.toLowerCase().includes(search))
+  );
+  renderUsers();
+  document.getElementById('users-count-badge').textContent = `全 ${filteredUsers.length} 名`;
+}
+
+// ===== CHARTS =====
+function initCharts() {
+  // Bookings trend
+  const ctx1 = document.getElementById('bookings-chart').getContext('2d');
+  new Chart(ctx1, {
+    type: 'line',
+    data: {
+      labels: ['1月','2月','3月','4月','5月','6月','7月'],
+      datasets: [{
+        label: '予約数',
+        data: [22, 28, 35, 42, 38, 44, 47],
+        borderColor: '#d4af37',
+        backgroundColor: 'rgba(212,175,55,0.1)',
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: '#d4af37',
+        pointRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color:'rgba(255,255,255,0.05)' }, ticks: { color:'rgba(255,255,255,0.5)' } },
+        y: { grid: { color:'rgba(255,255,255,0.05)' }, ticks: { color:'rgba(255,255,255,0.5)' } }
+      }
+    }
+  });
+
+  // Occupancy by property
+  const ctx2 = document.getElementById('occupancy-chart').getContext('2d');
+  new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: ['THE SUN','THE MOON','THE SMILE','THE SKY'],
+      datasets: [{
+        data: [85, 78, 72, 68],
+        backgroundColor: ['#d4af37','#b8973a','#9a7d2f','#7a6326'],
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position:'bottom', labels: { color:'rgba(255,255,255,0.6)', padding:10, font:{ size:11 } } }
+      }
+    }
+  });
+}
+
+// ===== TOAST =====
+function showToast(msg, type='success') {
+  const t = document.getElementById('admin-toast');
+  const m = document.getElementById('admin-toast-msg');
+  const icon = t.querySelector('i');
+  t.className = 'admin-toast ' + type;
+  icon.className = type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-circle';
+  m.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
