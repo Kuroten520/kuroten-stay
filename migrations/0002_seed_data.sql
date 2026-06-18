@@ -65,7 +65,9 @@ INSERT OR IGNORE INTO properties (
 
 -- ============================================================
 -- オーナーアカウント（管理者）
--- パスワード: KurotenOwner2024! → PBKDF2ハッシュ（暫定: プレーンテキスト形式で保存）
+-- パスワードはPBKDF2-SHA256ハッシュ（Web Crypto API互換）
+-- owner@kuroten-stay.com → 元パスワード: kuroten2024
+-- admin@kuroten-stay.com → 元パスワード: admin1234
 -- ⚠️ 本番運用前に必ずパスワードを変更すること
 -- ============================================================
 INSERT OR IGNORE INTO users (
@@ -75,7 +77,7 @@ INSERT OR IGNORE INTO users (
   (
     'user-owner-0001',
     'owner@kuroten-stay.com',
-    'kuroten2024',
+    'pbkdf2:85a727b1a75bf195e645441b43a9e834:833119503fd9ca3207cb3c06cd243eb9baecaa9452f3b14a43930faaa0fcdd82',
     'オーナー', '',
     'owner', 1,
     datetime('now'), datetime('now')
@@ -83,7 +85,7 @@ INSERT OR IGNORE INTO users (
   (
     'user-admin-0001',
     'admin@kuroten-stay.com',
-    'admin1234',
+    'pbkdf2:5c26429f9d0e5edbae2db4b9d3ee2736:b814740135acbc9d8f273aef4cb7806ed64ff533c170c80d336c7cdcbc7493b6',
     '管理者', '',
     'owner', 1,
     datetime('now'), datetime('now')

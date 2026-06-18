@@ -12,6 +12,36 @@ import type { Property, Booking } from '../db/schema'
 export const propertiesRoutes = new Hono<{ Bindings: Env }>()
 
 // ============================================================
+// D1はsnake_caseで返すため camelCase に変換するヘルパー
+// ============================================================
+function toPropertyResponse(p: any) {
+  return {
+    id:              p.id,
+    slug:            p.slug,
+    nameJa:          p.name_ja          ?? p.nameJa,
+    nameEn:          p.name_en          ?? p.nameEn,
+    descriptionJa:   p.description_ja   ?? p.descriptionJa,
+    descriptionEn:   p.description_en   ?? p.descriptionEn,
+    maxGuests:       p.max_guests        ?? p.maxGuests,
+    bedrooms:        p.bedrooms,
+    beds:            p.beds,
+    bathrooms:       p.bathrooms,
+    pricePerNight:   p.price_per_night   ?? p.pricePerNight,
+    cleaningFee:     p.cleaning_fee      ?? p.cleaningFee,
+    addressJa:       p.address_ja        ?? p.addressJa,
+    addressEn:       p.address_en        ?? p.addressEn,
+    checkInTime:     p.check_in_time     ?? p.checkInTime,
+    checkOutTime:    p.check_out_time    ?? p.checkOutTime,
+    isActive:        (p.is_active        ?? p.isActive) === 1,
+    thumbnailUrl:    p.thumbnail_url     ?? p.thumbnailUrl,
+    images:          p.images,
+    amenities:       p.amenities,
+    createdAt:       p.created_at        ?? p.createdAt,
+    updatedAt:       p.updated_at        ?? p.updatedAt,
+  }
+}
+
+// ============================================================
 // GET /api/properties — 物件一覧
 // ============================================================
 propertiesRoutes.get('/', async (c) => {
@@ -19,7 +49,7 @@ propertiesRoutes.get('/', async (c) => {
     c.env.DB,
     'SELECT * FROM properties WHERE is_active = 1 ORDER BY slug'
   )
-  return c.json({ properties })
+  return c.json({ properties: properties.map(toPropertyResponse) })
 })
 
 // ============================================================
@@ -41,7 +71,7 @@ propertiesRoutes.get('/:id', async (c) => {
     return c.json({ error: '物件が見つかりません' }, 404)
   }
 
-  return c.json(property)
+  return c.json(toPropertyResponse(property))
 })
 
 // ============================================================

@@ -217,13 +217,17 @@ authRoutes.post('/login', async (c) => {
     path:     '/',
   })
 
+  // D1はスネークケース（first_name / last_name）で返すためフォールバック
+  const firstName = (user as any).first_name ?? user.firstName ?? null
+  const lastName  = (user as any).last_name  ?? user.lastName  ?? null
+
   return c.json({
     accessToken,
     user: {
       id:        user.id,
       email:     user.email,
-      firstName: user.firstName,
-      lastName:  user.lastName,
+      firstName,
+      lastName,
       phone:     user.phone,
       role:      user.role,
     }
@@ -360,8 +364,8 @@ authRoutes.put('/me', async (c) => {
   return c.json({
     id:          updated!.id,
     email:       updated!.email,
-    firstName:   updated!.firstName,
-    lastName:    updated!.lastName,
+    firstName:   (updated as any).first_name ?? updated!.firstName,
+    lastName:    (updated as any).last_name  ?? updated!.lastName,
     phone:       updated!.phone,
     nationality: updated!.nationality,
     role:        updated!.role,
