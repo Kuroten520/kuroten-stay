@@ -1,612 +1,698 @@
-/* ================================================
-   Kuroten Stay Sapporo — Admin Panel JS
-   ================================================ */
+/**
+ * Kuroten Stay Sapporo — 管理画面メインロジック
+ * AdminApp オブジェクトとして公開
+ *
+ * 依存: /static/js/api.js (window.KurotenApi)
+ */
+(function (global) {
+  'use strict';
 
-'use strict';
-
-/* ---- セッション管理（localStorageベース・デモ用） ---- */
-const AdminSession = {
-  OWNER_EMAIL:    'owner@kuroten-stay.com',
-  OWNER_PASSWORD: 'kuroten2025',
-  KEY: 'kuroten_admin_session',
-
-  save(user) {
-    try { localStorage.setItem(this.KEY, JSON.stringify(user)); } catch(e) {}
-  },
-  load() {
-    try { return JSON.parse(localStorage.getItem(this.KEY)); } catch(e) { return null; }
-  },
-  clear() {
-    try { localStorage.removeItem(this.KEY); } catch(e) {}
-  },
-  check() {
-    return !!this.load();
-  }
-};
-
-/* ======================================================
-   AdminApp — メインオブジェクト
-   ====================================================== */
-const AdminApp = {
-
-  currentUser: null,
-  charts: {},
-  state: {
-    currentPage: 'dashboard',
-    currentContactId: null,
+  const AdminApp = {
     currentBookingId: null,
-  },
+    currentContactId: null,
 
-  /* ---------- 初期化 ---------- */
-  init() {
-    this.bindLoginForm();
-    const session = AdminSession.load();
-    if (session) {
-      this.loginSuccess(session, false);
-    }
-    this.updateTopbarDate();
-    setInterval(() => this.updateTopbarDate(), 60000);
-  },
+    /* ------------------------------------------------------------------ */
+    /* 初期化                                                               */
+    /* ------------------------------------------------------------------ */
+    async init() {
+      // 日付表示
+      const dateEl = document.getElementById('topbar-date');
+      if (dateEl) {
+        dateEl.textContent = new Date().toLocaleDateString('ja-JP', {
+          year: 'numeric', month: 'long', day: 'numeric', weekday: 'short',
+        });
+      }
 
-  /* ---------- ログインフォーム ---------- */
-  bindLoginForm() {
-    const form = document.getElementById('admin-login-form');
-    if (!form) return;
-    form.addEventListener('submit', async (e) => {
+      // ログイン状態確認
+      const token = localStorage.getItem('kuroten_access_token');
+      const user  = JSON.parse(localStorage.getItem('kuroten_user') || 'null');
+      if (token && user?.role === 'owner') {
+        this.showDashboard(user);
+      } else {
+        const loginScreen = document.getElementById('login-screen');
+        if (loginScreen) loginScreen.style.display = 'flex';
+      }
+
+      // ログインフォーム
+      const loginForm = document.getElementById('admin-login-form');
+      if (loginForm) loginForm.addEventListener('submit', this.handleLogin.bind(this));
+
+      // サイドバーナビ
+      document.querySelectorAll('.sidebar-nav-item[data-page]').forEach(btn => {
+        btn.addEventListener('click', () => this.showPage(btn.dataset.page));
+      });
+
+      // ログアウト
+      const logoutBtn = document.getElementById('admin-logout-btn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+          await window.KurotenApi?.Auth.logout();
+        });
+      }
+
+      // フィルター
+      const bookingsStatusFilter   = document.getElementById('bookings-status-filter');
+      const bookingsPropertyFilter = document.getElementById('bookings-property-filter');
+      const contactsStatusFilter   = document.getElementById('contacts-status-filter');
+      if (bookingsStatusFilter)   bookingsStatusFilter.addEventListener('change', () => this.loadBookings());
+      if (bookingsPropertyFilter) bookingsPropertyFilter.addEventListener('change', () => this.loadBookings());
+      if (contactsStatusFilter)   contactsStatusFilter.addEventListener('change', () => this.loadContacts());
+
+      // 検索フィールド（デバウンス付き）
+      const usersSearch = document.getElementById('users-search');
+      if (usersSearch) {
+        let timer;
+        usersSearch.addEventListener('input', () => {
+          clearTimeout(timer);
+          timer = setTimeout(() => this.loadUsers(), 400);
+        });
+      }
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* ログイン処理                                                         */
+    /* ------------------------------------------------------------------ */
+    async handleLogin(e) {
       e.preventDefault();
       const email    = document.getElementById('admin-email').value.trim();
       const password = document.getElementById('admin-password').value;
       const errEl    = document.getElementById('login-error-msg');
       const btn      = document.getElementById('login-submit-btn');
 
-      errEl.textContent = '';
+      errEl.style.display = 'none';
       btn.disabled = true;
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ログイン中...';
 
-      // 簡易認証（デモ）
-      await new Promise(r => setTimeout(r, 600));
-
-      if (email === AdminSession.OWNER_EMAIL && password === AdminSession.OWNER_PASSWORD) {
-        const user = { email, name: 'オーナー', role: 'owner' };
-        AdminSession.save(user);
-        this.loginSuccess(user, true);
-      } else {
-        errEl.textContent = 'メールアドレスまたはパスワードが正しくありません。';
+      try {
+        const user = await window.KurotenApi.Auth.login({ email, password });
+        if (user.role !== 'owner') {
+          await window.KurotenApi.Auth.logout();
+          throw new Error('オーナーアカウントでログインしてください');
+        }
+        this.showDashboard(user);
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+      } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-lock"></i> ログイン';
       }
-    });
-  },
+    },
 
-  loginSuccess(user, isNew) {
-    this.currentUser = user;
-    document.body.classList.add('admin-logged-in');
+    /* ------------------------------------------------------------------ */
+    /* ダッシュボード表示                                                   */
+    /* ------------------------------------------------------------------ */
+    showDashboard(user) {
+      const loginScreen = document.getElementById('login-screen');
+      if (loginScreen) loginScreen.style.display = 'none';
 
-    const nameEl = document.getElementById('sidebar-user-name');
-    if (nameEl) nameEl.textContent = user.name || user.email;
+      const name = user.firstName || user.email;
+      const nameEl = document.getElementById('sidebar-user-name');
+      const avatarEl = document.getElementById('sidebar-avatar');
+      if (nameEl) nameEl.textContent = name;
+      if (avatarEl) avatarEl.textContent = name.charAt(0).toUpperCase();
 
-    const avatarEl = document.getElementById('sidebar-avatar');
-    if (avatarEl) avatarEl.textContent = (user.name || user.email)[0].toUpperCase();
+      this.showPage('dashboard');
+    },
 
-    if (isNew) this.showToast('ログインしました', 'success');
-    this.bindSidebarNav();
-    this.bindLogout();
-    this.showPage('dashboard');
-  },
+    /* ------------------------------------------------------------------ */
+    /* ページ切り替え                                                       */
+    /* ------------------------------------------------------------------ */
+    showPage(page) {
+      document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.sidebar-nav-item').forEach(b => b.classList.remove('active'));
 
-  /* ---------- サイドバーナビ ---------- */
-  bindSidebarNav() {
-    document.querySelectorAll('.sidebar-nav-item[data-page]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.showPage(btn.getAttribute('data-page'));
-      });
-    });
-  },
+      const pageEl = document.getElementById(`page-${page}`);
+      const navBtn = document.querySelector(`.sidebar-nav-item[data-page="${page}"]`);
+      if (pageEl) pageEl.classList.add('active');
+      if (navBtn) navBtn.classList.add('active');
 
-  showPage(page) {
-    this.state.currentPage = page;
+      const titles = {
+        dashboard:  'ダッシュボード',
+        bookings:   '予約管理',
+        contacts:   '問い合わせ管理',
+        properties: '物件管理',
+        users:      'ユーザー一覧',
+      };
+      const topbarTitle = document.getElementById('topbar-title');
+      if (topbarTitle) topbarTitle.textContent = titles[page] || page;
 
-    // sidebar active
-    document.querySelectorAll('.sidebar-nav-item[data-page]').forEach(btn => {
-      btn.classList.toggle('active', btn.getAttribute('data-page') === page);
-    });
+      // 初回ロード
+      if (page === 'dashboard')  this.loadDashboard();
+      if (page === 'bookings')   this.loadBookings();
+      if (page === 'contacts')   this.loadContacts();
+      if (page === 'properties') this.loadProperties();
+      if (page === 'users')      this.loadUsers();
+    },
 
-    // content active
-    document.querySelectorAll('.admin-page').forEach(el => {
-      el.classList.toggle('active', el.id === `page-${page}`);
-    });
+    /* ------------------------------------------------------------------ */
+    /* ダッシュボードデータ                                                 */
+    /* ------------------------------------------------------------------ */
+    async loadDashboard() {
+      try {
+        const stats = await window.KurotenApi.Admin.getStats();
 
-    // topbar title
-    const titles = {
-      dashboard:  'ダッシュボード',
-      bookings:   '予約管理',
-      contacts:   '問い合わせ管理',
-      properties: '物件管理',
-      users:      'ユーザー一覧',
-    };
-    const titleEl = document.getElementById('topbar-title');
-    if (titleEl) titleEl.textContent = titles[page] || page;
+        this._setText('stat-bookings-month', stats.bookingsThisMonth ?? '—');
+        this._setText('stat-revenue-month',
+          stats.revenueThisMonth ? `¥${(stats.revenueThisMonth / 10000).toFixed(1)}万` : '—');
+        this._setHTML('stat-current-guests', `${stats.currentGuests ?? '—'}<span>名</span>`);
+        this._setText('stat-new-contacts', stats.newContacts ?? '—');
 
-    // load data
-    const loaders = {
-      dashboard:  () => this.loadDashboard(),
-      bookings:   () => this.loadBookings(),
-      contacts:   () => this.loadContacts(),
-      properties: () => this.loadProperties(),
-      users:      () => this.loadUsers(),
-    };
-    if (loaders[page]) loaders[page]();
-  },
-
-  /* ---------- ログアウト ---------- */
-  bindLogout() {
-    const btn = document.getElementById('admin-logout-btn');
-    if (!btn) return;
-    btn.addEventListener('click', () => {
-      AdminSession.clear();
-      document.body.classList.remove('admin-logged-in');
-      this.currentUser = null;
-      this.showToast('ログアウトしました', '');
-    });
-  },
-
-  /* ---------- トップバー日付 ---------- */
-  updateTopbarDate() {
-    const el = document.getElementById('topbar-date');
-    if (!el) return;
-    const now = new Date();
-    const opts = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' };
-    el.textContent = now.toLocaleDateString('ja-JP', opts);
-  },
-
-  /* ======================================================
-     DASHBOARD
-     ====================================================== */
-  async loadDashboard() {
-    const stats = await KurotenApi.Mock.getStats();
-    // stat cards
-    this._setEl('stat-bookings-month', stats.bookingsMonth);
-    this._setEl('stat-bookings-change', '');
-    this._setEl('stat-revenue-month', `¥${stats.revenueMonth.toLocaleString()}`);
-    this._setEl('stat-revenue-change', '');
-    this._setEl('stat-current-guests', stats.currentGuests);
-    this._setEl('stat-new-contacts', stats.newContacts);
-
-    // badges
-    const pendingCount = document.getElementById('pending-count');
-    const newContactsCount = document.getElementById('new-contacts-count');
-    if (pendingCount) {
-      pendingCount.textContent = '2';
-      pendingCount.style.display = '';
-    }
-    if (newContactsCount) {
-      newContactsCount.textContent = stats.newContacts;
-      newContactsCount.style.display = stats.newContacts > 0 ? '' : 'none';
-    }
-
-    // charts
-    this.renderBookingsChart(stats.bookingsByMonth);
-    this.renderPropertyChart(stats.bookingsByProperty);
-
-    // recent bookings table
-    const data = await KurotenApi.Mock.getBookings();
-    const tbody = document.getElementById('recent-bookings-body');
-    if (tbody) {
-      tbody.innerHTML = data.bookings.slice(0, 5).map(b => `
-        <tr>
-          <td><strong>${b.id}</strong></td>
-          <td>${b.propertyLabel}</td>
-          <td>${b.guest}</td>
-          <td>${b.checkin}</td>
-          <td>${b.guests}名</td>
-          <td class="amount-value">¥${b.amount.toLocaleString()}</td>
-          <td>${this.statusBadge(b.status)}</td>
-        </tr>
-      `).join('');
-    }
-  },
-
-  renderBookingsChart(data) {
-    const ctx = document.getElementById('bookings-chart');
-    if (!ctx) return;
-    if (this.charts.bookings) this.charts.bookings.destroy();
-    const months = ['2月', '3月', '4月', '5月', '6月', '7月'];
-    this.charts.bookings = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: months,
-        datasets: [{
-          label: '予約数',
-          data: data,
-          backgroundColor: 'rgba(212, 175, 55, 0.55)',
-          borderColor: '#d4af37',
-          borderWidth: 1,
-          borderRadius: 2,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-        },
-        scales: {
-          x: {
-            grid: { color: 'rgba(255,255,255,0.04)' },
-            ticks: { color: '#8a9bb0', font: { size: 11 } },
-          },
-          y: {
-            grid: { color: 'rgba(255,255,255,0.04)' },
-            ticks: { color: '#8a9bb0', font: { size: 11 }, stepSize: 5 },
-            beginAtZero: true,
-          }
+        // バッジ更新
+        const pc = document.getElementById('pending-count');
+        const nc = document.getElementById('new-contacts-count');
+        if (pc && stats.pendingBookings > 0) {
+          pc.textContent = stats.pendingBookings;
+          pc.style.display = 'flex';
         }
-      }
-    });
-  },
+        if (nc && stats.newContacts > 0) {
+          nc.textContent = stats.newContacts;
+          nc.style.display = 'flex';
+        }
 
-  renderPropertyChart(data) {
-    const ctx = document.getElementById('property-chart');
-    if (!ctx) return;
-    if (this.charts.property) this.charts.property.destroy();
-    this.charts.property = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: ['THE SUN', 'THE MOON', 'THE SMILE', 'THE SKY'],
-        datasets: [{
-          data: data,
-          backgroundColor: ['#d4af37', '#4a90d9', '#4caf7d', '#e6994d'],
-          borderColor: '#1b2838',
-          borderWidth: 2,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { color: '#8a9bb0', font: { size: 11 }, padding: 12 },
+        this.renderBookingsChart(stats.monthlyBookings || []);
+        this.renderPropertyChart(stats.propertyBreakdown || []);
+        this.loadRecentBookings();
+      } catch (_) {
+        this.renderMockDashboard();
+      }
+    },
+
+    renderMockDashboard() {
+      this._setText('stat-bookings-month', '—');
+      this._setText('stat-revenue-month',  '—');
+      this._setHTML('stat-current-guests', '—<span>名</span>');
+      this._setText('stat-new-contacts',   '—');
+
+      this.renderBookingsChart([
+        { month: '1月', count: 0 }, { month: '2月', count: 0 },
+        { month: '3月', count: 0 }, { month: '4月', count: 0 },
+        { month: '5月', count: 0 }, { month: '6月', count: 0 },
+      ]);
+      this.renderPropertyChart([
+        { name: 'THE SUN', count: 1 }, { name: 'THE MOON',  count: 1 },
+        { name: 'THE SMILE', count: 1 }, { name: 'THE SKY', count: 1 },
+      ]);
+
+      this._setHTML('recent-bookings-body',
+        '<tr><td colspan="7" class="admin-empty"><i class="fas fa-plug"></i>APIに接続するとデータが表示されます</td></tr>');
+    },
+
+    renderBookingsChart(data) {
+      const canvas = document.getElementById('bookings-chart');
+      if (!canvas || !global.Chart) return;
+      const ctx = canvas.getContext('2d');
+      if (global._bookingsChart) global._bookingsChart.destroy();
+      global._bookingsChart = new global.Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.map(d => d.month),
+          datasets: [{
+            label: '予約数',
+            data: data.map(d => d.count),
+            backgroundColor: 'rgba(184,151,58,0.6)',
+            borderColor: 'rgba(184,151,58,1)',
+            borderWidth: 2,
+            borderRadius: 4,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.5)' } },
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.5)', stepSize: 1 }, beginAtZero: true },
           },
         },
-        cutout: '65%',
+      });
+    },
+
+    renderPropertyChart(data) {
+      const canvas = document.getElementById('property-chart');
+      if (!canvas || !global.Chart) return;
+      const ctx = canvas.getContext('2d');
+      if (global._propertyChart) global._propertyChart.destroy();
+      global._propertyChart = new global.Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: data.map(d => d.name),
+          datasets: [{
+            data: data.map(d => d.count),
+            backgroundColor: [
+              'rgba(184,151,58,0.8)',
+              'rgba(79,168,255,0.8)',
+              'rgba(0,200,100,0.8)',
+              'rgba(255,200,0,0.8)',
+            ],
+            borderColor: '#181830',
+            borderWidth: 3,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: 'rgba(255,255,255,0.6)', padding: 12, font: { size: 11 } },
+            },
+          },
+        },
+      });
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* 最近の予約                                                           */
+    /* ------------------------------------------------------------------ */
+    async loadRecentBookings() {
+      const tbody = document.getElementById('recent-bookings-body');
+      if (!tbody) return;
+      try {
+        const { bookings } = await window.KurotenApi.Admin.listBookings({ limit: 5 });
+        if (!bookings?.length) {
+          tbody.innerHTML = '<tr><td colspan="7" class="admin-empty">予約がありません</td></tr>';
+          return;
+        }
+        tbody.innerHTML = bookings.map(b => `
+          <tr>
+            <td><code style="color:var(--gold);font-size:0.8rem;">${this._esc(b.bookingCode)}</code></td>
+            <td>${this._esc(b.propertySlug?.toUpperCase() || '—')}</td>
+            <td>${this._esc(b.guestName || '—')}</td>
+            <td>${this._esc(b.checkinDate || '—')}</td>
+            <td>${b.guestCount || '—'}名</td>
+            <td>¥${(b.totalPrice || 0).toLocaleString()}</td>
+            <td><span class="badge badge--${this._esc(b.status)}">${this.statusLabel(b.status)}</span></td>
+          </tr>
+        `).join('');
+      } catch (_) {
+        tbody.innerHTML = '<tr><td colspan="7" class="admin-empty">APIに接続するとデータが表示されます</td></tr>';
       }
-    });
-  },
+    },
 
-  /* ======================================================
-     BOOKINGS
-     ====================================================== */
-  async loadBookings(params = {}) {
-    const data = await KurotenApi.Mock.getBookings(params);
-    const tbody = document.getElementById('bookings-table-body');
-    const label = document.getElementById('bookings-count-label');
-    if (label) label.textContent = `（${data.total}件）`;
+    /* ------------------------------------------------------------------ */
+    /* 予約一覧                                                             */
+    /* ------------------------------------------------------------------ */
+    async loadBookings() {
+      const tbody = document.getElementById('bookings-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = '<tr><td colspan="9" class="admin-loading"><i class="fas fa-spinner fa-spin"></i> 読み込み中...</td></tr>';
 
-    if (!tbody) return;
-    if (data.bookings.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" class="admin-empty">予約が見つかりません</td></tr>';
-      return;
-    }
-    tbody.innerHTML = data.bookings.map(b => `
-      <tr>
-        <td><strong>${b.id}</strong></td>
-        <td>${b.propertyLabel}</td>
-        <td>${b.guest}</td>
-        <td>${b.checkin}</td>
-        <td>${b.checkout}</td>
-        <td>${b.guests}名</td>
-        <td class="amount-value">¥${b.amount.toLocaleString()}</td>
-        <td>${this.statusBadge(b.status)}</td>
-        <td>
-          <button class="action-btn action-btn--outline" onclick="AdminApp.openBookingDetail('${b.id}')">
-            <i class="fas fa-eye"></i> 詳細
-          </button>
-        </td>
-      </tr>
-    `).join('');
+      try {
+        const status   = document.getElementById('bookings-status-filter')?.value;
+        const property = document.getElementById('bookings-property-filter')?.value;
+        const { bookings, total } = await window.KurotenApi.Admin.listBookings({
+          status:       status   || undefined,
+          propertySlug: property || undefined,
+        });
 
-    // showing label
-    const showLabel = document.getElementById('bookings-showing-label');
-    if (showLabel) showLabel.textContent = `${data.total}件`;
+        this._setText('bookings-count-label', `全${total || 0}件`);
+        this._setText('bookings-showing-label', `${bookings?.length || 0}件表示中`);
 
-    this.bindBookingFilters();
-  },
+        if (!bookings?.length) {
+          tbody.innerHTML = '<tr><td colspan="9" class="admin-empty">予約がありません</td></tr>';
+          return;
+        }
+        tbody.innerHTML = bookings.map(b => `
+          <tr>
+            <td><code style="color:var(--gold);font-size:0.78rem;">${this._esc(b.bookingCode)}</code></td>
+            <td>${this._esc(b.propertySlug?.toUpperCase() || '—')}</td>
+            <td>
+              <div style="font-weight:500;">${this._esc(b.guestName || '—')}</div>
+              <div style="font-size:0.75rem;color:var(--text-muted);">${this._esc(b.guestEmail || '')}</div>
+            </td>
+            <td>${this._esc(b.checkinDate || '—')}</td>
+            <td>${this._esc(b.checkoutDate || '—')}</td>
+            <td>${b.guestCount || '—'}名</td>
+            <td>¥${(b.totalPrice || 0).toLocaleString()}</td>
+            <td><span class="badge badge--${this._esc(b.status)}">${this.statusLabel(b.status)}</span></td>
+            <td>
+              <div class="actions-cell">
+                <button class="action-btn action-btn--primary"
+                        onclick="AdminApp.showBookingDetail('${this._esc(b.id)}')">
+                  <i class="fas fa-eye"></i> 詳細
+                </button>
+                ${b.status === 'pending' ? `
+                  <button class="action-btn action-btn--success"
+                          onclick="AdminApp.updateBookingStatus('${this._esc(b.id)}','confirmed')">
+                    <i class="fas fa-check"></i> 確定
+                  </button>
+                ` : ''}
+              </div>
+            </td>
+          </tr>
+        `).join('');
+      } catch (_) {
+        tbody.innerHTML = '<tr><td colspan="9" class="admin-empty">APIに接続するとデータが表示されます</td></tr>';
+        this._setText('bookings-showing-label', '—件');
+      }
+    },
 
-  bindBookingFilters() {
-    // search
-    const searchInput = document.getElementById('bookings-search');
-    const statusFilter = document.getElementById('bookings-status-filter');
-    const propertyFilter = document.getElementById('bookings-property-filter');
-    if (!searchInput) return;
+    async showBookingDetail(bookingId) {
+      this.currentBookingId = bookingId;
+      const modal = document.getElementById('booking-detail-modal');
+      const content = document.getElementById('booking-detail-content');
+      const confirmBtn = document.getElementById('booking-confirm-btn');
+      if (!modal) return;
 
-    const refresh = () => this.loadBookings({
-      q:        searchInput.value,
-      status:   statusFilter ? statusFilter.value : '',
-      property: propertyFilter ? propertyFilter.value : '',
-    });
+      modal.style.display = 'flex';
+      content.innerHTML = '<div class="admin-loading"><i class="fas fa-spinner fa-spin"></i> 読み込み中...</div>';
+      confirmBtn.style.display = 'none';
 
-    searchInput.oninput = refresh;
-    if (statusFilter) statusFilter.onchange = refresh;
-    if (propertyFilter) propertyFilter.onchange = refresh;
-  },
+      try {
+        const b = await window.KurotenApi.Bookings.get(bookingId);
+        content.innerHTML = [
+          ['予約コード',  `<code style="color:var(--gold)">${this._esc(b.bookingCode)}</code>`],
+          ['施設',        this._esc(b.propertySlug?.toUpperCase())],
+          ['ゲスト名',    this._esc(b.guestName)],
+          ['メール',      this._esc(b.guestEmail)],
+          ['電話番号',    this._esc(b.guestPhone || '—')],
+          ['チェックイン',this._esc(b.checkinDate)],
+          ['チェックアウト',this._esc(b.checkoutDate)],
+          ['宿泊数',      `${b.nights}泊`],
+          ['人数',        `${b.guestCount}名`],
+          ['宿泊料金',    `¥${((b.pricePerNight || 0) * (b.nights || 1)).toLocaleString()}`],
+          ['清掃料金',    `¥${(b.cleaningFee || 0).toLocaleString()}`],
+          ['合計金額',    `<strong style="color:var(--gold)">¥${(b.totalPrice || 0).toLocaleString()}</strong>`],
+          ['ステータス',  `<span class="badge badge--${this._esc(b.status)}">${this.statusLabel(b.status)}</span>`],
+          ['ゲストメモ',  this._esc(b.guestNote || '—')],
+        ].map(([l, v]) =>
+          `<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-value">${v}</span></div>`
+        ).join('');
 
-  async openBookingDetail(id) {
-    this.state.currentBookingId = id;
-    const data = await KurotenApi.Mock.getBookings();
-    const booking = data.bookings.find(b => b.id === id);
-    if (!booking) return;
+        if (b.status === 'pending') {
+          confirmBtn.style.display = 'inline-flex';
+        }
+      } catch (_) {
+        content.innerHTML = '<p class="admin-empty">データの取得に失敗しました</p>';
+      }
+    },
 
-    const contentEl = document.getElementById('booking-detail-content');
-    if (contentEl) {
-      contentEl.innerHTML = `
-        <div class="detail-grid">
-          <div class="detail-item">
-            <div class="detail-label">予約コード</div>
-            <div class="detail-value"><strong>${booking.id}</strong></div>
+    async confirmBooking() {
+      if (!this.currentBookingId) return;
+      try {
+        await window.KurotenApi.Admin.updateBookingStatus(this.currentBookingId, 'confirmed');
+        this.closeModal('booking-detail-modal');
+        this.showToast('予約を確定しました', 'success');
+        this.loadBookings();
+      } catch (err) {
+        this.showToast(`エラー: ${err.message}`, 'error');
+      }
+    },
+
+    async updateBookingStatus(bookingId, status) {
+      try {
+        await window.KurotenApi.Admin.updateBookingStatus(bookingId, status);
+        this.showToast('ステータスを更新しました', 'success');
+        this.loadBookings();
+      } catch (err) {
+        this.showToast(`エラー: ${err.message}`, 'error');
+      }
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* 問い合わせ管理                                                       */
+    /* ------------------------------------------------------------------ */
+    async loadContacts() {
+      const tbody = document.getElementById('contacts-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = '<tr><td colspan="6" class="admin-loading"><i class="fas fa-spinner fa-spin"></i> 読み込み中...</td></tr>';
+
+      try {
+        const status = document.getElementById('contacts-status-filter')?.value;
+        const { contacts, total } = await window.KurotenApi.Admin.listContacts({
+          status: status || undefined,
+        });
+        this._setText('contacts-showing-label', `${contacts?.length || 0}件表示中`);
+
+        if (!contacts?.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="admin-empty">問い合わせがありません</td></tr>';
+          return;
+        }
+        const catLabels = {
+          booking_inquiry: '予約問い合わせ', cancellation: 'キャンセル',
+          facility: '設備', access: 'アクセス', other: 'その他',
+        };
+        tbody.innerHTML = contacts.map(c => `
+          <tr>
+            <td style="font-size:0.8rem;color:var(--text-muted);">
+              ${new Date(c.createdAt).toLocaleDateString('ja-JP')}
+            </td>
+            <td>
+              <div style="font-weight:500;">${this._esc(c.name)}</div>
+              <div style="font-size:0.75rem;color:var(--text-muted);">${this._esc(c.email)}</div>
+            </td>
+            <td><span style="font-size:0.78rem;">${catLabels[c.category] || this._esc(c.category)}</span></td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+              ${this._esc(c.subject)}
+            </td>
+            <td><span class="badge badge--${this._esc(c.status)}">${this.contactStatusLabel(c.status)}</span></td>
+            <td>
+              <button class="action-btn action-btn--primary"
+                      onclick="AdminApp.showContactReply('${this._esc(c.id)}')">
+                <i class="fas fa-reply"></i> 返信
+              </button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (_) {
+        tbody.innerHTML = '<tr><td colspan="6" class="admin-empty">APIに接続するとデータが表示されます</td></tr>';
+      }
+    },
+
+    async showContactReply(contactId) {
+      this.currentContactId = contactId;
+      const modal   = document.getElementById('contact-reply-modal');
+      const content = document.getElementById('contact-detail-content');
+      const textarea = document.getElementById('reply-textarea');
+      if (!modal) return;
+
+      if (textarea) textarea.value = '';
+      modal.style.display = 'flex';
+      content.innerHTML = '<div class="admin-loading"><i class="fas fa-spinner fa-spin"></i></div>';
+
+      try {
+        // 問い合わせ詳細取得（実際はAPIから）
+        const { contacts } = await window.KurotenApi.Admin.listContacts();
+        const c = contacts?.find(c => c.id === contactId);
+        if (c) {
+          content.innerHTML = `
+            <div class="detail-row">
+              <span class="detail-label">送信者</span>
+              <span class="detail-value">${this._esc(c.name)} &lt;${this._esc(c.email)}&gt;</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">件名</span>
+              <span class="detail-value">${this._esc(c.subject)}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">メッセージ</span>
+              <span class="detail-value" style="white-space:pre-wrap;text-align:left;">
+                ${this._esc(c.message)}
+              </span>
+            </div>
+          `;
+        } else {
+          content.innerHTML = `
+            <div class="detail-row">
+              <span class="detail-label">問い合わせID</span>
+              <span class="detail-value">${this._esc(contactId)}</span>
+            </div>
+          `;
+        }
+      } catch (_) {
+        content.innerHTML = `
+          <div class="detail-row">
+            <span class="detail-label">問い合わせID</span>
+            <span class="detail-value">${this._esc(contactId)}</span>
           </div>
-          <div class="detail-item">
-            <div class="detail-label">ステータス</div>
-            <div class="detail-value">${this.statusBadge(booking.status)}</div>
+        `;
+      }
+    },
+
+    async sendReply() {
+      const textarea = document.getElementById('reply-textarea');
+      const reply = textarea?.value.trim();
+      if (!reply) { this.showToast('返信内容を入力してください', 'error'); return; }
+
+      try {
+        await window.KurotenApi.Admin.replyContact(this.currentContactId, { reply });
+        this.closeModal('contact-reply-modal');
+        this.showToast('返信を送信しました', 'success');
+        this.loadContacts();
+      } catch (err) {
+        this.showToast(`エラー: ${err.message}`, 'error');
+      }
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* 物件管理                                                             */
+    /* ------------------------------------------------------------------ */
+    async loadProperties() {
+      const grid = document.getElementById('properties-grid');
+      if (!grid) return;
+      grid.innerHTML = '<div class="admin-loading"><i class="fas fa-spinner fa-spin"></i> 読み込み中...</div>';
+
+      try {
+        const properties = await window.KurotenApi.Properties.list();
+        grid.innerHTML = properties.map(p => `
+          <div class="property-admin-card">
+            <div class="property-admin-card-header">
+              <span class="property-admin-card-name">${this._esc(p.nameJa)}</span>
+              <span class="badge ${p.isActive ? 'badge--confirmed' : 'badge--cancelled'}">
+                ${p.isActive ? '公開中' : '非公開'}
+              </span>
+            </div>
+            <div class="property-admin-card-body">
+              ${[
+                ['最大定員', `${p.maxGuests}名`],
+                ['寝室数',   `${p.bedrooms}部屋`],
+                ['ベッド数', `${p.beds}台`],
+                ['バスルーム', `${p.bathrooms}室`],
+                ['1泊料金', `¥${(p.pricePerNight || 0).toLocaleString()}`],
+                ['清掃料金', `¥${(p.cleaningFee || 0).toLocaleString()}`],
+                ['住所', this._esc(p.addressJa || '—')],
+              ].map(([l, v]) => `
+                <div class="property-stat-row"><span>${l}</span><span>${v}</span></div>
+              `).join('')}
+            </div>
+            <div class="property-admin-card-footer">
+              <button class="action-btn action-btn--primary"
+                      onclick="AdminApp.editProperty('${this._esc(p.id)}')">
+                <i class="fas fa-edit"></i> 編集
+              </button>
+            </div>
           </div>
-          <div class="detail-item">
-            <div class="detail-label">施設</div>
-            <div class="detail-value">${booking.propertyLabel}</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-label">ゲスト名</div>
-            <div class="detail-value">${booking.guest}</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-label">チェックイン</div>
-            <div class="detail-value">${booking.checkin}</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-label">チェックアウト</div>
-            <div class="detail-value">${booking.checkout}</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-label">人数</div>
-            <div class="detail-value">${booking.guests}名</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-label">合計金額</div>
-            <div class="detail-value amount-value">¥${booking.amount.toLocaleString()}</div>
-          </div>
-        </div>
-      `;
-    }
+        `).join('');
+      } catch (_) {
+        grid.innerHTML = '<div class="admin-empty"><i class="fas fa-plug"></i>APIに接続するとデータが表示されます</div>';
+      }
+    },
 
-    // 確定ボタン（pending のみ表示）
-    const confirmBtn = document.getElementById('booking-confirm-btn');
-    if (confirmBtn) {
-      confirmBtn.style.display = booking.status === 'pending' ? '' : 'none';
-    }
+    editProperty(propertyId) {
+      this.showToast('物件編集機能はバックエンド接続後に利用できます', 'error');
+    },
 
-    this.openModal('booking-detail-modal');
-  },
+    /* ------------------------------------------------------------------ */
+    /* ユーザー一覧                                                         */
+    /* ------------------------------------------------------------------ */
+    async loadUsers() {
+      const tbody = document.getElementById('users-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = '<tr><td colspan="7" class="admin-loading"><i class="fas fa-spinner fa-spin"></i> 読み込み中...</td></tr>';
 
-  confirmBooking() {
-    this.showToast('予約を確定しました', 'success');
-    this.closeModal('booking-detail-modal');
-    this.loadBookings();
-  },
+      try {
+        const search = document.getElementById('users-search')?.value.trim() || '';
+        const { users, total } = await window.KurotenApi.Admin.listUsers({
+          search: search || undefined,
+        });
+        this._setText('users-showing-label', `${users?.length || 0}件表示中`);
 
-  /* ======================================================
-     CONTACTS
-     ====================================================== */
-  async loadContacts(params = {}) {
-    const data = await KurotenApi.Mock.getContacts(params);
-    const tbody = document.getElementById('contacts-table-body');
-    if (!tbody) return;
+        if (!users?.length) {
+          tbody.innerHTML = '<tr><td colspan="7" class="admin-empty">ユーザーがいません</td></tr>';
+          return;
+        }
+        tbody.innerHTML = users.map(u => `
+          <tr>
+            <td>
+              <div style="font-weight:500;">${this._esc(u.lastName || '')} ${this._esc(u.firstName || '')}</div>
+            </td>
+            <td style="font-size:0.83rem;">${this._esc(u.email)}</td>
+            <td style="font-size:0.83rem;">${this._esc(u.phone || '—')}</td>
+            <td><span class="badge badge--${this._esc(u.role)}">${this._esc(u.role)}</span></td>
+            <td style="font-size:0.78rem;color:var(--text-muted);">
+              ${new Date(u.createdAt).toLocaleDateString('ja-JP')}
+            </td>
+            <td style="font-size:0.78rem;color:var(--text-muted);">
+              ${u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString('ja-JP') : '—'}
+            </td>
+            <td>${u.bookingCount || 0}件</td>
+          </tr>
+        `).join('');
+      } catch (_) {
+        tbody.innerHTML = '<tr><td colspan="7" class="admin-empty">APIに接続するとデータが表示されます</td></tr>';
+      }
+    },
 
-    if (data.contacts.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="admin-empty">問い合わせが見つかりません</td></tr>';
-      return;
-    }
-    tbody.innerHTML = data.contacts.map(c => `
-      <tr>
-        <td>${c.createdAt}</td>
-        <td>${c.sender}<br><small style="color:#8a9bb0;">${c.email}</small></td>
-        <td>${c.category}</td>
-        <td>${c.subject}</td>
-        <td>${this.statusBadge(c.status)}</td>
-        <td>
-          <button class="action-btn action-btn--outline" onclick="AdminApp.openContactReply('${c.id}')">
-            <i class="fas fa-reply"></i> 返信
-          </button>
-        </td>
-      </tr>
-    `).join('');
+    /* ------------------------------------------------------------------ */
+    /* モーダル                                                             */
+    /* ------------------------------------------------------------------ */
+    closeModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    },
 
-    const showLabel = document.getElementById('contacts-showing-label');
-    if (showLabel) showLabel.textContent = `${data.total}件`;
+    /* ------------------------------------------------------------------ */
+    /* トースト通知                                                         */
+    /* ------------------------------------------------------------------ */
+    showToast(msg, type = 'success') {
+      const toast = document.getElementById('admin-toast');
+      const msgEl = document.getElementById('admin-toast-msg');
+      const icon  = toast?.querySelector('i');
+      if (!toast || !msgEl) return;
 
-    // filter
-    const statusFilter = document.getElementById('contacts-status-filter');
-    if (statusFilter) {
-      statusFilter.onchange = () => this.loadContacts({ status: statusFilter.value });
-    }
-  },
+      msgEl.textContent = msg;
+      toast.className = `admin-toast admin-toast--${type} show`;
+      if (icon) {
+        icon.className = `fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}`;
+      }
+      clearTimeout(this._toastTimer);
+      this._toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+    },
 
-  async openContactReply(id) {
-    this.state.currentContactId = id;
-    const data = await KurotenApi.Mock.getContacts();
-    const contact = data.contacts.find(c => c.id === id);
-    if (!contact) return;
+    /* ------------------------------------------------------------------ */
+    /* ユーティリティ                                                       */
+    /* ------------------------------------------------------------------ */
+    statusLabel(s) {
+      return ({
+        pending:     '仮予約',
+        confirmed:   '確定',
+        checked_in:  'チェックイン済',
+        checked_out: 'チェックアウト済',
+        cancelled:   'キャンセル',
+        no_show:     'ノーショー',
+      })[s] || s;
+    },
 
-    const contentEl = document.getElementById('contact-detail-content');
-    if (contentEl) {
-      contentEl.innerHTML = `
-        <div class="detail-grid">
-          <div class="detail-item">
-            <div class="detail-label">送信者</div>
-            <div class="detail-value">${contact.sender}</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-label">メール</div>
-            <div class="detail-value">${contact.email}</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-label">受信日時</div>
-            <div class="detail-value">${contact.createdAt}</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-label">ステータス</div>
-            <div class="detail-value">${this.statusBadge(contact.status)}</div>
-          </div>
-        </div>
-        <div class="detail-divider"></div>
-        <div class="detail-label" style="margin-bottom:8px;">件名: ${contact.subject}</div>
-        <div class="detail-message">${contact.message}</div>
-      `;
-    }
+    contactStatusLabel(s) {
+      return ({
+        new:         '未対応',
+        in_progress: '対応中',
+        resolved:    '解決済み',
+        closed:      'クローズ',
+      })[s] || s;
+    },
 
-    const replyTextarea = document.getElementById('reply-textarea');
-    if (replyTextarea) replyTextarea.value = '';
+    /** HTML エスケープ */
+    _esc(str) {
+      if (str == null) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    },
 
-    this.openModal('contact-reply-modal');
-  },
+    _setText(id, text) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = text;
+    },
 
-  sendReply() {
-    const msg = document.getElementById('reply-textarea')?.value.trim();
-    if (!msg) {
-      this.showToast('返信内容を入力してください', 'error');
-      return;
-    }
-    this.showToast('返信を送信しました', 'success');
-    this.closeModal('contact-reply-modal');
-    this.loadContacts();
-  },
+    _setHTML(id, html) {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = html;
+    },
+  };
 
-  /* ======================================================
-     PROPERTIES
-     ====================================================== */
-  async loadProperties() {
-    const data = await KurotenApi.Mock.getProperties();
-    const grid = document.getElementById('properties-grid');
-    if (!grid) return;
+  /* 全画面グローバルに公開 */
+  global.AdminApp = AdminApp;
 
-    grid.innerHTML = data.properties.map(p => `
-      <div class="property-admin-card">
-        <img src="${p.img}" alt="${p.label}" class="property-admin-card-img" loading="lazy">
-        <div class="property-admin-card-body">
-          <div class="property-admin-card-name">${p.label}</div>
-          <div class="property-admin-card-spec">
-            <i class="fas fa-map-marker-alt"></i> 札幌市${p.address}
-          </div>
-          <div class="property-admin-card-spec">
-            <i class="fas fa-users"></i> 最大${p.capacity}名 ／
-            <i class="fas fa-door-open"></i> ${p.bedrooms}寝室 ／
-            <i class="fas fa-bath"></i> ${p.bathrooms}バス
-          </div>
-          <div class="property-admin-card-spec" style="margin-top:4px;">
-            ${this.statusBadge('active')}
-          </div>
-          <div class="property-admin-card-actions">
-            <a href="/#${p.id}" target="_blank" class="action-btn action-btn--outline">
-              <i class="fas fa-external-link-alt"></i> サイトで確認
-            </a>
-          </div>
-        </div>
-      </div>
-    `).join('');
-  },
+  /* DOM 準備完了後に起動 */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => AdminApp.init());
+  } else {
+    AdminApp.init();
+  }
 
-  /* ======================================================
-     USERS
-     ====================================================== */
-  async loadUsers(params = {}) {
-    const data = await KurotenApi.Mock.getUsers(params);
-    const tbody = document.getElementById('users-table-body');
-    if (!tbody) return;
-
-    if (data.users.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="admin-empty">ユーザーが見つかりません</td></tr>';
-      return;
-    }
-    tbody.innerHTML = data.users.map(u => `
-      <tr>
-        <td>${u.name}</td>
-        <td>${u.email}</td>
-        <td>${u.phone}</td>
-        <td><span class="status-badge ${u.role === 'owner' ? 'status-badge--confirmed' : 'status-badge--active'}">${u.role}</span></td>
-        <td>${u.createdAt}</td>
-        <td>${u.lastLogin}</td>
-        <td>${u.bookings}件</td>
-      </tr>
-    `).join('');
-
-    const showLabel = document.getElementById('users-showing-label');
-    if (showLabel) showLabel.textContent = `${data.total}件`;
-
-    const searchInput = document.getElementById('users-search');
-    if (searchInput) {
-      searchInput.oninput = () => this.loadUsers({ q: searchInput.value });
-    }
-  },
-
-  /* ======================================================
-     HELPERS
-     ====================================================== */
-  statusBadge(status) {
-    const map = {
-      confirmed:   '確定',
-      pending:     '仮予約',
-      checked_in:  'チェックイン済',
-      checked_out: 'チェックアウト済',
-      cancelled:   'キャンセル',
-      new:         '未対応',
-      in_progress: '対応中',
-      resolved:    '解決済み',
-      closed:      'クローズ',
-      active:      '稼働中',
-      inactive:    '停止中',
-    };
-    return `<span class="status-badge status-badge--${status}">${map[status] || status}</span>`;
-  },
-
-  openModal(id) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'flex';
-  },
-
-  closeModal(id) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-  },
-
-  showToast(message, type = '') {
-    const toast = document.getElementById('admin-toast');
-    const msg   = document.getElementById('admin-toast-msg');
-    if (!toast || !msg) return;
-    msg.textContent = message;
-    toast.className = `admin-toast${type === 'error' ? ' admin-toast--error' : ''}`;
-    requestAnimationFrame(() => {
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 3000);
-    });
-  },
-
-  _setEl(id, value) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = value;
-  },
-};
-
-/* モーダルオーバーレイクリックで閉じる */
-document.querySelectorAll('.admin-modal-overlay').forEach(overlay => {
-  overlay.addEventListener('click', e => {
-    if (e.target === overlay) {
-      AdminApp.closeModal(overlay.id);
-    }
-  });
-});
-
-/* 初期化 */
-document.addEventListener('DOMContentLoaded', () => {
-  AdminApp.init();
-});
-
-/* グローバルに公開（インラインonclick用） */
-window.AdminApp = AdminApp;
+})(window);

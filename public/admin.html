@@ -7,6 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="/static/css/admin.css">
   <style>
     :root {
       --color-bg: #0d1b2a;
@@ -842,6 +843,12 @@
   <i class="fas fa-check-circle"></i>
   <span id="admin-toast-msg"></span>
 </div>
+
+<!-- API client (provides mock data when no backend) -->
+<script>
+  window.KUROTEN_CONFIG = { apiBaseUrl: '' };
+</script>
+<script src="/static/js/api.js"></script>
 
 <script>
 // ===== DATA =====

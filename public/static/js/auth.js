@@ -1,454 +1,462 @@
 /* ============================================================
-   Kuroten Stay Sapporo — Auth JavaScript
-   認証UI・ログイン状態管理
+   Kuroten Stay Sapporo — auth.js
+   ログイン・登録モーダル、ユーザーメニュー、トースト通知
    ============================================================ */
 
-'use strict';
+(function () {
+  'use strict';
 
-const KurotenAuth = (() => {
-  const STORAGE_KEY = 'kuroten_user';
-  const ADMIN_KEY   = 'kuroten_admin';
-
-  /* ---------- 状態 ---------- */
-  let currentUser = null;
-
-  /* ---------- 初期化 ---------- */
-  function init() {
-    _loadFromStorage();
-    _renderAuthUI();
-    _bindEvents();
-    _updateHeaderUI();
-  }
-
-  /* ---------- ストレージ ---------- */
-  function _loadFromStorage() {
-    try {
-      const raw = sessionStorage.getItem(STORAGE_KEY);
-      if (raw) currentUser = JSON.parse(raw);
-    } catch (_) {
-      currentUser = null;
-    }
-  }
-
-  function _saveToStorage(user) {
-    try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    } catch (_) {}
-  }
-
-  function _clearStorage() {
-    sessionStorage.removeItem(STORAGE_KEY);
-    sessionStorage.removeItem(ADMIN_KEY);
-  }
-
-  /* ---------- ヘッダーUI更新 ---------- */
-  function _updateHeaderUI() {
-    const loginBtn   = document.getElementById('header-login-btn');
-    const userMenu   = document.getElementById('header-user-menu');
-    const userName   = document.getElementById('header-user-name');
-
-    if (!loginBtn) return;
-
-    if (currentUser) {
-      loginBtn.style.display  = 'none';
-      if (userMenu)  userMenu.style.display  = 'flex';
-      if (userName)  userName.textContent = currentUser.name || currentUser.email;
-    } else {
-      loginBtn.style.display  = 'inline-flex';
-      if (userMenu)  userMenu.style.display  = 'none';
-    }
-  }
-
-  /* ---------- モーダル ---------- */
-  function _getModal(id) {
-    return document.getElementById(id);
-  }
-
-  function openLoginModal() {
-    const modal = _getModal('auth-modal');
-    if (!modal) return;
-    modal.classList.add('open');
-    document.body.style.overflow = 'hidden';
-    // ログインタブをアクティブに
-    _switchTab('login');
-  }
-
-  function closeAuthModal() {
-    const modal = _getModal('auth-modal');
-    if (!modal) return;
-    modal.classList.remove('open');
-    document.body.style.overflow = '';
-    _clearFormErrors();
-  }
-
-  function _switchTab(tab) {
-    const loginForm    = document.getElementById('login-form-wrap');
-    const registerForm = document.getElementById('register-form-wrap');
-    const loginTab     = document.getElementById('tab-login');
-    const registerTab  = document.getElementById('tab-register');
-
-    if (tab === 'login') {
-      loginForm?.classList.add('active');
-      registerForm?.classList.remove('active');
-      loginTab?.classList.add('active');
-      registerTab?.classList.remove('active');
-    } else {
-      registerForm?.classList.add('active');
-      loginForm?.classList.remove('active');
-      registerTab?.classList.add('active');
-      loginTab?.classList.remove('active');
-    }
-  }
-
-  /* ---------- フォーム検証 ---------- */
-  function _clearFormErrors() {
-    document.querySelectorAll('.form-error').forEach(el => el.textContent = '');
-    document.querySelectorAll('.form-input.error').forEach(el => el.classList.remove('error'));
-  }
-
-  function _setError(fieldId, message) {
-    const field = document.getElementById(fieldId);
-    const error = document.getElementById(fieldId + '-error');
-    if (field) field.classList.add('error');
-    if (error) error.textContent = message;
-  }
-
-  function _validateEmail(email) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  }
-
-  /* ---------- ログイン処理 ---------- */
-  async function _handleLogin(e) {
-    e.preventDefault();
-    _clearFormErrors();
-
-    const email    = document.getElementById('login-email')?.value.trim() || '';
-    const password = document.getElementById('login-password')?.value || '';
-
-    let hasError = false;
-
-    if (!email) {
-      _setError('login-email', 'メールアドレスを入力してください');
-      hasError = true;
-    } else if (!_validateEmail(email)) {
-      _setError('login-email', '正しいメールアドレスを入力してください');
-      hasError = true;
-    }
-
-    if (!password) {
-      _setError('login-password', 'パスワードを入力してください');
-      hasError = true;
-    }
-
-    if (hasError) return;
-
-    const btn = document.getElementById('login-submit-btn');
-    if (btn) { btn.disabled = true; btn.textContent = 'ログイン中...'; }
-
-    try {
-      // APIログイン試行 / フォールバック
-      let user = null;
-      const BASE_URL = (window.KUROTEN_CONFIG && window.KUROTEN_CONFIG.apiBaseUrl) || '';
-
-      if (BASE_URL) {
-        const res = await fetch(`${BASE_URL}/api/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          user = data.user;
-        }
-      } else {
-        // デモ用モックログイン
-        if (password.length >= 6) {
-          user = { id: 'demo-' + Date.now(), email, name: email.split('@')[0], role: 'guest' };
-        }
-      }
-
-      if (user) {
-        currentUser = user;
-        _saveToStorage(user);
-        _updateHeaderUI();
-        closeAuthModal();
-        _showToast('ログインしました', 'success');
-      } else {
-        _setError('login-password', 'メールアドレスまたはパスワードが正しくありません');
-      }
-    } catch (err) {
-      _setError('login-password', 'ログインに失敗しました。しばらくしてから再試行してください。');
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'ログイン'; }
-    }
-  }
-
-  /* ---------- 新規登録処理 ---------- */
-  async function _handleRegister(e) {
-    e.preventDefault();
-    _clearFormErrors();
-
-    const name     = document.getElementById('register-name')?.value.trim() || '';
-    const email    = document.getElementById('register-email')?.value.trim() || '';
-    const password = document.getElementById('register-password')?.value || '';
-    const confirm  = document.getElementById('register-confirm')?.value || '';
-
-    let hasError = false;
-
-    if (!name) {
-      _setError('register-name', 'お名前を入力してください');
-      hasError = true;
-    }
-
-    if (!email) {
-      _setError('register-email', 'メールアドレスを入力してください');
-      hasError = true;
-    } else if (!_validateEmail(email)) {
-      _setError('register-email', '正しいメールアドレスを入力してください');
-      hasError = true;
-    }
-
-    if (!password) {
-      _setError('register-password', 'パスワードを入力してください');
-      hasError = true;
-    } else if (password.length < 8) {
-      _setError('register-password', 'パスワードは8文字以上で入力してください');
-      hasError = true;
-    }
-
-    if (password !== confirm) {
-      _setError('register-confirm', 'パスワードが一致しません');
-      hasError = true;
-    }
-
-    if (hasError) return;
-
-    const btn = document.getElementById('register-submit-btn');
-    if (btn) { btn.disabled = true; btn.textContent = '登録中...'; }
-
-    try {
-      let user = null;
-      const BASE_URL = (window.KUROTEN_CONFIG && window.KUROTEN_CONFIG.apiBaseUrl) || '';
-
-      if (BASE_URL) {
-        const res = await fetch(`${BASE_URL}/api/auth/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          user = data.user;
-        }
-      } else {
-        // モック登録
-        user = { id: 'user-' + Date.now(), email, name, role: 'guest' };
-      }
-
-      if (user) {
-        currentUser = user;
-        _saveToStorage(user);
-        _updateHeaderUI();
-        closeAuthModal();
-        _showToast('アカウントを作成しました', 'success');
-      } else {
-        _setError('register-email', 'このメールアドレスは既に登録されています');
-      }
-    } catch (err) {
-      _setError('register-email', '登録に失敗しました。しばらくしてから再試行してください。');
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = '新規登録'; }
-    }
-  }
-
-  /* ---------- ログアウト ---------- */
-  function logout() {
-    currentUser = null;
-    _clearStorage();
-    _updateHeaderUI();
-    _showToast('ログアウトしました', 'info');
-  }
-
-  /* ---------- トースト通知 ---------- */
-  function _showToast(message, type = 'success') {
-    // 既存のトースト要素を探す
-    let toast = document.getElementById('auth-toast');
-
+  // ================================================================
+  //   Toast 通知
+  // ================================================================
+  function showToast(message, type = 'success', duration = 3500) {
+    let toast = document.getElementById('kuroten-toast');
     if (!toast) {
       toast = document.createElement('div');
-      toast.id = 'auth-toast';
-      toast.style.cssText = `
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        padding: 12px 20px;
-        border-radius: 8px;
-        color: #fff;
-        font-size: 14px;
-        font-family: var(--font-sans, sans-serif);
-        z-index: 9999;
-        opacity: 0;
-        transform: translateY(10px);
-        transition: opacity 0.3s ease, transform 0.3s ease;
-        pointer-events: none;
-      `;
+      toast.id = 'kuroten-toast';
+      toast.className = 'kuroten-toast';
+      toast.innerHTML = '<i class="fas fa-check-circle"></i><span class="kuroten-toast-msg"></span>';
       document.body.appendChild(toast);
     }
 
-    const colors = { success: '#2e7d32', error: '#c62828', info: '#1565c0', warn: '#e65100' };
-    toast.style.background = colors[type] || colors.success;
-    toast.textContent = message;
-    toast.style.opacity = '1';
-    toast.style.transform = 'translateY(0)';
+    const icon = toast.querySelector('i');
+    const msg = toast.querySelector('.kuroten-toast-msg') || toast.querySelector('span');
 
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translateY(10px)';
-    }, 3000);
+    toast.className = 'kuroten-toast kuroten-toast--' + type;
+    icon.className = type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-circle';
+    msg.textContent = message;
+
+    toast.classList.add('kuroten-toast--show');
+    setTimeout(() => toast.classList.remove('kuroten-toast--show'), duration);
   }
 
-  /* ---------- イベントバインド ---------- */
-  function _bindEvents() {
-    // ログインボタン
-    const loginBtn = document.getElementById('header-login-btn');
-    loginBtn?.addEventListener('click', openLoginModal);
+  window.KurotenToast = showToast;
 
-    // モーダルを閉じる
-    const closeBtn = document.getElementById('auth-modal-close');
-    closeBtn?.addEventListener('click', closeAuthModal);
+  // ================================================================
+  //   ヘッダー認証ウィジェットの更新
+  // ================================================================
+  function updateAuthWidget() {
+    const container = document.getElementById('auth-header-widget');
+    if (!container) return;
 
-    // モーダル背景クリック
-    const modal = document.getElementById('auth-modal');
-    modal?.addEventListener('click', e => {
-      if (e.target === modal) closeAuthModal();
-    });
+    const api = window.KurotenApi;
+    if (!api) return;
 
-    // ESCキー
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') closeAuthModal();
-    });
-
-    // タブ切替
-    document.getElementById('tab-login')?.addEventListener('click', () => _switchTab('login'));
-    document.getElementById('tab-register')?.addEventListener('click', () => _switchTab('register'));
-
-    // ログインフォーム送信
-    document.getElementById('login-form')?.addEventListener('submit', _handleLogin);
-
-    // 登録フォーム送信
-    document.getElementById('register-form')?.addEventListener('submit', _handleRegister);
-
-    // ログアウトボタン
-    document.getElementById('logout-btn')?.addEventListener('click', logout);
-
-    // ユーザーメニュー
-    const userMenu = document.getElementById('header-user-menu');
-    const userDropdown = document.getElementById('user-dropdown');
-    if (userMenu && userDropdown) {
-      userMenu.addEventListener('click', () => {
-        userDropdown.classList.toggle('open');
-      });
-      document.addEventListener('click', e => {
-        if (!userMenu.contains(e.target)) {
-          userDropdown.classList.remove('open');
-        }
-      });
+    if (api.Auth.isLoggedIn()) {
+      const user = api.Auth.getUser();
+      const name = user?.name || user?.email || 'ゲスト';
+      container.innerHTML = `
+        <div class="auth-user-menu" id="auth-user-menu">
+          <button class="auth-user-btn" id="auth-user-btn" aria-haspopup="true" aria-expanded="false">
+            <i class="fas fa-user-circle"></i>
+            <span>${escapeHTML(name)}</span>
+            <i class="fas fa-chevron-down"></i>
+          </button>
+          <div class="auth-user-dropdown" id="auth-user-dropdown" hidden>
+            <button class="auth-dropdown-item" onclick="KurotenAuth.openMyBookings()">
+              <i class="fas fa-calendar-check"></i> 予約一覧
+            </button>
+            <hr class="auth-dropdown-divider">
+            <button class="auth-dropdown-item auth-dropdown-item--danger" onclick="KurotenAuth.logout()">
+              <i class="fas fa-sign-out-alt"></i> ログアウト
+            </button>
+          </div>
+        </div>
+      `;
+      initUserMenu();
+    } else {
+      container.innerHTML = `
+        <div class="auth-guest-btns">
+          <button class="auth-btn auth-btn--login" onclick="KurotenAuth.openLogin()">ログイン</button>
+          <button class="auth-btn auth-btn--register" onclick="KurotenAuth.openRegister()">会員登録</button>
+        </div>
+      `;
     }
   }
 
-  /* ---------- 認証モーダルHTMLを動的に生成 ---------- */
-  function _renderAuthUI() {
-    // 既存のモーダルがあればスキップ
-    if (document.getElementById('auth-modal')) return;
+  function initUserMenu() {
+    const btn = document.getElementById('auth-user-btn');
+    const dropdown = document.getElementById('auth-user-dropdown');
+    if (!btn || !dropdown) return;
 
-    const modal = document.createElement('div');
-    modal.id = 'auth-modal';
-    modal.className = 'auth-modal';
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('aria-label', 'ログイン・新規登録');
-    modal.innerHTML = `
-      <div class="auth-modal-inner">
-        <button class="auth-modal-close" id="auth-modal-close" aria-label="閉じる">&times;</button>
+    btn.addEventListener('click', () => {
+      const expanded = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', String(!expanded));
+      dropdown.hidden = expanded;
+    });
 
-        <div class="auth-logo">
-          <span class="logo-text">Kuroten</span>
-          <span class="logo-sub">Stay Sapporo</span>
-        </div>
-
-        <div class="auth-tabs">
-          <button class="auth-tab active" id="tab-login">ログイン</button>
-          <button class="auth-tab" id="tab-register">新規登録</button>
-        </div>
-
-        <!-- ログインフォーム -->
-        <div class="auth-form-wrap active" id="login-form-wrap">
-          <form id="login-form" novalidate>
-            <div class="form-group">
-              <label class="form-label" for="login-email">メールアドレス</label>
-              <input class="form-input" type="email" id="login-email"
-                     placeholder="example@email.com" autocomplete="email" required>
-              <span class="form-error" id="login-email-error"></span>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="login-password">パスワード</label>
-              <input class="form-input" type="password" id="login-password"
-                     placeholder="パスワード" autocomplete="current-password" required>
-              <span class="form-error" id="login-password-error"></span>
-            </div>
-            <button class="auth-submit-btn" type="submit" id="login-submit-btn">ログイン</button>
-          </form>
-        </div>
-
-        <!-- 新規登録フォーム -->
-        <div class="auth-form-wrap" id="register-form-wrap">
-          <form id="register-form" novalidate>
-            <div class="form-group">
-              <label class="form-label" for="register-name">お名前</label>
-              <input class="form-input" type="text" id="register-name"
-                     placeholder="山田 太郎" autocomplete="name" required>
-              <span class="form-error" id="register-name-error"></span>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="register-email">メールアドレス</label>
-              <input class="form-input" type="email" id="register-email"
-                     placeholder="example@email.com" autocomplete="email" required>
-              <span class="form-error" id="register-email-error"></span>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="register-password">パスワード（8文字以上）</label>
-              <input class="form-input" type="password" id="register-password"
-                     placeholder="パスワード" autocomplete="new-password" required>
-              <span class="form-error" id="register-password-error"></span>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="register-confirm">パスワード（確認）</label>
-              <input class="form-input" type="password" id="register-confirm"
-                     placeholder="パスワードを再入力" autocomplete="new-password" required>
-              <span class="form-error" id="register-confirm-error"></span>
-            </div>
-            <button class="auth-submit-btn" type="submit" id="register-submit-btn">新規登録</button>
-          </form>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
+    document.addEventListener('click', e => {
+      if (!btn.contains(e.target) && !dropdown.contains(e.target)) {
+        btn.setAttribute('aria-expanded', 'false');
+        dropdown.hidden = true;
+      }
+    });
   }
 
-  /* ---------- 公開メソッド ---------- */
-  return {
-    init,
-    openLoginModal,
-    closeAuthModal,
+  // ================================================================
+  //   モーダル ヘルパー
+  // ================================================================
+  function createOverlay(content) {
+    const overlay = document.createElement('div');
+    overlay.className = 'auth-modal-overlay';
+    overlay.innerHTML = content;
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) closeModal(overlay);
+    });
+    document.addEventListener('keydown', function handler(e) {
+      if (e.key === 'Escape') {
+        closeModal(overlay);
+        document.removeEventListener('keydown', handler);
+      }
+    });
+    return overlay;
+  }
+
+  function closeModal(overlay) {
+    if (!overlay) return;
+    overlay.remove();
+    document.body.style.overflow = '';
+  }
+
+  function escapeHTML(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ================================================================
+  //   ログインモーダル
+  // ================================================================
+  function openLogin() {
+    const overlay = createOverlay(`
+      <div class="auth-modal" role="dialog" aria-labelledby="login-title" aria-modal="true">
+        <button class="auth-modal-close" onclick="this.closest('.auth-modal-overlay').remove(); document.body.style.overflow='';" aria-label="閉じる">
+          <i class="fas fa-times"></i>
+        </button>
+        <div class="auth-modal-header">
+          <h2 class="auth-modal-title" id="login-title">ログイン</h2>
+          <p class="auth-modal-sub">Kuroten Stay Sapporo アカウント</p>
+        </div>
+        <div id="login-error-banner" class="auth-error-banner" style="display:none"></div>
+        <form class="auth-form" id="login-form" onsubmit="KurotenAuth._submitLogin(event)">
+          <div class="auth-form-group">
+            <label class="auth-label" for="login-email">メールアドレス</label>
+            <input class="auth-input" type="email" id="login-email" placeholder="email@example.com" required autocomplete="email">
+          </div>
+          <div class="auth-form-group">
+            <label class="auth-label" for="login-pw">パスワード</label>
+            <div class="auth-input-wrap">
+              <input class="auth-input" type="password" id="login-pw" placeholder="••••••••" required autocomplete="current-password">
+              <button type="button" class="auth-pw-toggle" aria-label="パスワードを表示/非表示" onclick="togglePw('login-pw', this)">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+          <button type="submit" class="auth-submit-btn" id="login-submit-btn">
+            <i class="fas fa-sign-in-alt"></i> ログイン
+          </button>
+        </form>
+        <div class="auth-modal-footer">
+          アカウントをお持ちでない方は
+          <button class="auth-link-btn" onclick="this.closest('.auth-modal-overlay').remove(); document.body.style.overflow=''; KurotenAuth.openRegister();">
+            新規会員登録
+          </button>
+        </div>
+      </div>
+    `);
+
+    overlay.querySelector('#login-email').focus();
+  }
+
+  async function submitLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value.trim();
+    const pw = document.getElementById('login-pw').value;
+    const btn = document.getElementById('login-submit-btn');
+    const errBanner = document.getElementById('login-error-banner');
+
+    errBanner.style.display = 'none';
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ログイン中...';
+
+    try {
+      await window.KurotenApi.Auth.login(email, pw);
+      const overlay = document.querySelector('.auth-modal-overlay');
+      closeModal(overlay);
+      updateAuthWidget();
+      showToast('ログインしました', 'success');
+    } catch (err) {
+      errBanner.textContent = err.message || 'ログインに失敗しました';
+      errBanner.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ログイン';
+    }
+  }
+
+  // ================================================================
+  //   会員登録モーダル
+  // ================================================================
+  function openRegister() {
+    const overlay = createOverlay(`
+      <div class="auth-modal" role="dialog" aria-labelledby="register-title" aria-modal="true">
+        <button class="auth-modal-close" onclick="this.closest('.auth-modal-overlay').remove(); document.body.style.overflow='';" aria-label="閉じる">
+          <i class="fas fa-times"></i>
+        </button>
+        <div class="auth-modal-header">
+          <h2 class="auth-modal-title" id="register-title">新規会員登録</h2>
+          <p class="auth-modal-sub">無料で登録して予約を管理できます</p>
+        </div>
+        <div id="register-error-banner" class="auth-error-banner" style="display:none"></div>
+        <form class="auth-form" id="register-form" onsubmit="KurotenAuth._submitRegister(event)">
+          <div class="auth-form-row">
+            <div class="auth-form-group">
+              <label class="auth-label" for="reg-lastname">姓</label>
+              <input class="auth-input" type="text" id="reg-lastname" placeholder="山田" required>
+            </div>
+            <div class="auth-form-group">
+              <label class="auth-label" for="reg-firstname">名</label>
+              <input class="auth-input" type="text" id="reg-firstname" placeholder="太郎" required>
+            </div>
+          </div>
+          <div class="auth-form-group">
+            <label class="auth-label" for="reg-email">メールアドレス</label>
+            <input class="auth-input" type="email" id="reg-email" placeholder="email@example.com" required autocomplete="email">
+            <div class="auth-field-error" id="reg-email-error"></div>
+          </div>
+          <div class="auth-form-group">
+            <label class="auth-label" for="reg-pw">パスワード <span class="auth-optional">（8文字以上）</span></label>
+            <div class="auth-input-wrap">
+              <input class="auth-input" type="password" id="reg-pw" placeholder="••••••••" required minlength="8" autocomplete="new-password">
+              <button type="button" class="auth-pw-toggle" aria-label="パスワードを表示/非表示" onclick="togglePw('reg-pw', this)">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <div class="auth-field-error" id="reg-pw-error"></div>
+          </div>
+          <div class="auth-form-group">
+            <label class="auth-label" for="reg-phone">電話番号 <span class="auth-optional">（任意）</span></label>
+            <input class="auth-input" type="tel" id="reg-phone" placeholder="090-0000-0000">
+          </div>
+          <button type="submit" class="auth-submit-btn" id="register-submit-btn">
+            <i class="fas fa-user-plus"></i> 会員登録する
+          </button>
+        </form>
+        <div class="auth-modal-footer">
+          すでにアカウントをお持ちの方は
+          <button class="auth-link-btn" onclick="this.closest('.auth-modal-overlay').remove(); document.body.style.overflow=''; KurotenAuth.openLogin();">
+            ログイン
+          </button>
+        </div>
+      </div>
+    `);
+
+    overlay.querySelector('#reg-lastname').focus();
+  }
+
+  async function submitRegister(e) {
+    e.preventDefault();
+    const lastname = document.getElementById('reg-lastname').value.trim();
+    const firstname = document.getElementById('reg-firstname').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const pw = document.getElementById('reg-pw').value;
+    const phone = document.getElementById('reg-phone').value.trim();
+
+    const emailErr = document.getElementById('reg-email-error');
+    const pwErr = document.getElementById('reg-pw-error');
+    emailErr.textContent = '';
+    pwErr.textContent = '';
+
+    if (pw.length < 8) {
+      pwErr.textContent = 'パスワードは8文字以上で入力してください';
+      return;
+    }
+
+    const btn = document.getElementById('register-submit-btn');
+    const errBanner = document.getElementById('register-error-banner');
+    errBanner.style.display = 'none';
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登録中...';
+
+    try {
+      await window.KurotenApi.Auth.register({
+        name: lastname + ' ' + firstname,
+        email,
+        password: pw,
+        phone: phone || undefined,
+      });
+      const overlay = document.querySelector('.auth-modal-overlay');
+      closeModal(overlay);
+      updateAuthWidget();
+      showToast('会員登録が完了しました！ようこそ、Kuroten Stay Sapporoへ！', 'success', 4000);
+    } catch (err) {
+      errBanner.textContent = err.message || '登録に失敗しました';
+      errBanner.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-user-plus"></i> 会員登録する';
+    }
+  }
+
+  // ================================================================
+  //   マイ予約モーダル
+  // ================================================================
+  function openMyBookings() {
+    const overlay = createOverlay(`
+      <div class="auth-modal auth-modal--wide" role="dialog" aria-labelledby="mybookings-title" aria-modal="true">
+        <button class="auth-modal-close" onclick="this.closest('.auth-modal-overlay').remove(); document.body.style.overflow='';" aria-label="閉じる">
+          <i class="fas fa-times"></i>
+        </button>
+        <div class="auth-modal-header">
+          <h2 class="auth-modal-title" id="mybookings-title">予約一覧</h2>
+          <p class="auth-modal-sub">現在の予約状況をご確認いただけます</p>
+        </div>
+        <div id="mybookings-content">
+          <p class="auth-loading"><i class="fas fa-spinner fa-spin"></i> 読み込み中...</p>
+        </div>
+      </div>
+    `);
+
+    loadMyBookings(overlay);
+  }
+
+  async function loadMyBookings(overlay) {
+    const content = overlay.querySelector('#mybookings-content');
+    try {
+      const bookings = await window.KurotenApi.Bookings.list();
+      if (!bookings.length) {
+        content.innerHTML = '<p class="auth-empty"><i class="fas fa-calendar-times"></i> 予約がありません</p>';
+        return;
+      }
+      content.innerHTML = `
+        <div class="bookings-list">
+          ${bookings.map(b => `
+            <div class="booking-item">
+              <div class="booking-item-header">
+                <span class="booking-code">${escapeHTML(b.id)}</span>
+                <span class="booking-status booking-status--${escapeHTML(b.status)}">${statusLabel(b.status)}</span>
+              </div>
+              <div class="booking-item-body">
+                <p><strong>施設:</strong> ${escapeHTML(b.property || '')}</p>
+                <p><strong>人数:</strong> ${escapeHTML(String(b.guests || ''))}名</p>
+                <p><strong>チェックイン:</strong> ${escapeHTML(b.checkin || '')}</p>
+                <p><strong>チェックアウト:</strong> ${escapeHTML(b.checkout || '')}</p>
+              </div>
+              ${b.status === 'pending' || b.status === 'confirmed' ? `
+                <div class="booking-item-actions">
+                  <button class="booking-cancel-btn" onclick="KurotenAuth._cancelBooking('${escapeHTML(b.id)}', this)">
+                    キャンセル
+                  </button>
+                </div>
+              ` : ''}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } catch (err) {
+      content.innerHTML = `<p class="auth-error-text"><i class="fas fa-exclamation-triangle"></i> ${err.message}</p>`;
+    }
+  }
+
+  function statusLabel(s) {
+    const map = {
+      pending: '未確認',
+      confirmed: '確認済',
+      checked_in: '滞在中',
+      checked_out: 'チェックアウト済',
+      cancelled: 'キャンセル',
+    };
+    return map[s] || s;
+  }
+
+  async function cancelBooking(id, btn) {
+    if (!confirm('この予約をキャンセルしますか？')) return;
+    btn.disabled = true;
+    btn.textContent = 'キャンセル中...';
+    try {
+      await window.KurotenApi.Bookings.cancel(id);
+      showToast('予約をキャンセルしました', 'success');
+      // Reload bookings
+      const overlay = document.querySelector('.auth-modal-overlay');
+      if (overlay) loadMyBookings(overlay);
+    } catch (err) {
+      showToast('キャンセルに失敗しました: ' + err.message, 'error');
+      btn.disabled = false;
+      btn.textContent = 'キャンセル';
+    }
+  }
+
+  // ================================================================
+  //   パスワード表示トグル
+  // ================================================================
+  function togglePw(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const icon = btn.querySelector('i');
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.className = 'fas fa-eye-slash';
+      btn.setAttribute('aria-label', 'パスワードを非表示');
+    } else {
+      input.type = 'password';
+      icon.className = 'fas fa-eye';
+      btn.setAttribute('aria-label', 'パスワードを表示');
+    }
+  }
+  window.togglePw = togglePw;
+
+  // ================================================================
+  //   ログアウト
+  // ================================================================
+  async function logout() {
+    await window.KurotenApi.Auth.logout();
+    updateAuthWidget();
+    showToast('ログアウトしました', 'success');
+  }
+
+  // ================================================================
+  //   初期化
+  // ================================================================
+  function init() {
+    // Inject auth widget into header if placeholder exists
+    const placeholder = document.getElementById('auth-header-widget');
+    if (!placeholder) {
+      // Create widget placeholder in header
+      const header = document.querySelector('.header-inner');
+      if (header) {
+        const widget = document.createElement('div');
+        widget.id = 'auth-header-widget';
+        widget.className = 'auth-header-btns';
+        header.appendChild(widget);
+      }
+    }
+    updateAuthWidget();
+  }
+
+  // ================================================================
+  //   Expose global API
+  // ================================================================
+  window.KurotenAuth = {
+    openLogin,
+    openRegister,
+    openMyBookings,
     logout,
-    getCurrentUser: () => currentUser,
-    isLoggedIn: () => currentUser !== null,
-    isAdmin: () => currentUser?.role === 'admin'
+    updateAuthWidget,
+    showToast,
+    // Internal (called from inline onclick)
+    _submitLogin: submitLogin,
+    _submitRegister: submitRegister,
+    _cancelBooking: cancelBooking,
   };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();
-
-// DOM Ready で初期化
-document.addEventListener('DOMContentLoaded', () => KurotenAuth.init());
-
-// グローバル参照
-window.KurotenAuth = KurotenAuth;

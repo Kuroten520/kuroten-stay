@@ -1,21 +1,21 @@
 import { Hono } from 'hono'
-import { serveStatic } from 'hono/cloudflare-workers'
 
 const app = new Hono()
 
-// Serve static files (CSS, JS, images)
-app.use('/static/*', serveStatic({ root: './' }))
+// API routes (placeholder for future backend integration)
+app.get('/api/health', (c) => {
+  return c.json({ status: 'ok', service: 'Kuroten Stay Sapporo' })
+})
 
-// Admin page
-app.get('/admin', serveStatic({ path: './admin.html' }))
+// API: Contact form submission (mock response)
+app.post('/api/contact', async (c) => {
+  const body = await c.req.json().catch(() => ({}))
+  console.log('[Contact Form]', body)
+  return c.json({ success: true, message: 'お問い合わせを受け付けました。担当者よりご連絡いたします。' })
+})
 
-// Root → index.html
-app.get('/', serveStatic({ path: './index.html' }))
-
-// Fallback: serve any HTML files from public directory
-app.get('/:file{.+\\.html}', serveStatic({ root: './' }))
-
-// Catch-all → index.html (SPA pattern)
-app.get('/*', serveStatic({ path: './index.html' }))
+// Note: Static files (index.html, admin.html, /static/*) are served by
+// Cloudflare Pages directly from the dist/ directory.
+// The _routes.json ensures only /api/* routes go through this Worker.
 
 export default app
