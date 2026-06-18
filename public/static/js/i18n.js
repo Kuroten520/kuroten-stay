@@ -1,325 +1,538 @@
 /* ============================================================
-   Kuroten Stay Sapporo — i18n.js
-   多言語切り替え (ja / en / zh)
+   Kuroten Stay Sapporo — i18n (多言語対応)
+   Languages: ja / en / zh
    ============================================================ */
 
-(function () {
-  'use strict';
+const i18nData = {
+  ja: {
+    "nav.properties": "物件",
+    "nav.access": "アクセス",
+    "nav.nearby": "周辺施設",
+    "hero.eyebrow": "北海道 札幌 ／ 貸切ゲストハウス",
+    "hero.subtitle": "札幌で暮らすように、家族でくつろぐ",
+    "hero.cta": "予約・空き確認",
+    "properties.eyebrow": "Our Properties",
+    "properties.title": "施設のご案内",
+    "properties.desc": "Kuroten Stay Sapporoは、札幌市内に4つの貸切ゲストハウスをご用意しています。\nグループ旅行・ファミリー・カップルまで、さまざまなニーズにお応えします。",
+    "card.guests": "最大",
+    "card.rooms": "部屋",
+    "badge.new": "NEW",
+    "gallery.exterior": "外観",
+    "gallery.living": "リビング",
+    "gallery.kitchen": "キッチン",
+    "gallery.bedroom": "寝室",
+    "gallery.bathroom": "バスルーム",
+    "gallery.washroom": "洗面台",
+    "gallery.night": "夜景",
+    "gallery.living2": "ダイニング",
+    "spec.capacity": "定員",
+    "spec.persons": "名",
+    "spec.beds": "ベッド数",
+    "spec.beds.unit": "台",
+    "spec.bedrooms": "寝室",
+    "spec.rooms.unit": "部屋",
+    "spec.bathrooms": "バスルーム",
+    "spec.floorplan": "間取り",
+    "spec.parking": "駐車場",
+    "spec.address": "住所",
+    "sun.desc": "新築で綺麗な、広々とした1軒家です。トイレは2つ、バスタブ付きお風呂1つ、シャワールーム1つがあります。1階から3階まである、147平米の広々空間のうち2階にはキッチン、ダイニング、リビングがあり、駐車場は車庫で、1階部分に1台分ご用意しております（車の高さ制限2550mm以下）。全部屋にエアコン、ヒーター共に設置しており、安心安全快適なご宿泊をお約束致します。ベビーベッドも1台設置しております。",
+    "moon.desc": "新築で綺麗な、広々とした1軒家です。トイレは2つ、バスタブ付きお風呂1つ、シャワールーム1つがあります。1階から3階まである、147平米の広々空間のうち2階にはキッチン、ダイニング、リビングがあり、駐車場は車庫で、1階部分に2台分ご用意しております（車の高さ制限2550mm以下）。全部屋にエアコン、ヒーター共に設置しており、安心安全快適なご宿泊をお約束致します。ベビーベッドも1台設置しております。",
+    "smile.desc": "札幌市内、JR駅から徒歩約10分の好立地に佇む一棟貸しの戸建てゲストハウス「SMILE」。2階建て4LDK、最大10名様までゆったりとお寛ぎいただけます。重い荷物の上げ下げが不要な1階に3つの寝室を配置し、2階には開放感あふれるリビング・ダイニング・キッチンを完備。ファミリーやグループ旅行はもちろん、長期滞在にも最適です。屋根付きの無料駐車場が2台分付いているので、レンタカーでの北海道旅行も安心。札幌の中心部へアクセスしやすく、観光・ビジネスの拠点としてご活用いただけます。",
+    "sky.desc": "札幌中心部・南2条西10丁目のマンション2LDK。120平米の広々空間。2025年7月オープンの新しいお部屋です。都心の好立地で、最寄り駅から徒歩3分。すすきの・大通エリアへのアクセス抜群。75インチ大型テレビでAmazon Prime Video、Netflixが視聴可能。Wi-Fi完備。全部屋にエアコン・暖房完備で、安心安全快適なご宿泊をお約束致します。",
+    "sun.parking": "車庫付き1台（車高制限2550mm以下）",
+    "moon.parking": "屋根付き無料駐車場2台（車高制限2550mm以下）",
+    "checkin.label": "チェックイン",
+    "checkout.label": "チェックアウト",
+    "parking.label": "駐車場",
+    "checkin.selfcheck": "（キーボックスによるセルフチェックイン）",
+    "checkin.smartlock": "（スマートロックによるセルフチェックイン）",
+    "bedroom.title": "寝室の詳細",
+    "bedroom.1": "寝室1",
+    "bedroom.2": "寝室2",
+    "bedroom.3": "寝室3",
+    "bedroom.4": "寝室4",
+    "bedroom.living": "リビング",
+    "smile.tv": "約75インチ大型TV（Amazonプライム・Netflix対応）",
+    "sky.tv": "75インチTV（Amazon Prime Video / Netflix対応）",
+    "smile.amenity.bath2": "バス・トイレ2か所",
+    "houserules.title": "ハウスルール",
+    "houserules.smoking": "全館禁煙（屋内での喫煙はご遠慮ください）",
+    "houserules.party": "パーティー・イベントのご利用はご遠慮ください",
+    "houserules.pet": "ペットの同伴はご遠慮ください",
+    "houserules.quiet": "近隣への配慮として夜間はお静かにお過ごしください",
+    "smile.spec.bath": "1（バスタブ付き）＋ シャワールーム1",
+    "smile.spec.parking": "2台（屋根付き・車高2200mm以下・有効幅4000mm）",
+    "smile.parking": "屋根付き無料駐車場2台（車高制限2200mm以下・有効幅4000mm）",
+    "smile.bedroom.a": "寝室A（ダブル×2＋ベビーベッド）",
+    "smile.bedroom.b": "寝室B（ダブル×2）",
+    "smile.bedroom.c": "寝室C（シングル×2）",
+    "smile.bedroom.d": "寝室D（シングル×2）",
+    "smile.babycot": "ベビーベッド",
+    "smile.amenityset": "アメニティセット",
+    "smile.closet": "クローゼット",
+    "smile.bedroom.1f": "1F寝室（ダブル）",
+    "smile.lifestyle.title": "ご利用シーン",
+    "smile.extra.bedrooms": "追加寝室写真",
+    "sun.nearby.title": "THE SUN 周辺施設",
+    "sun.nearby.desc": "豊平区美園エリアのおすすめスポット",
+    "smile.nearby.title": "THE SMILE 周辺施設",
+    "smile.nearby.desc": "札幌東区エリアのおすすめスポット",
+    "smile.access.title": "THE SMILE アクセス",
+    "smile.access.subway": "地下鉄東西線",
+    "smile.access.subway.detail": "環状通東駅から 徒歩7分 / タクシー3分",
+    "smile.access.sapporo": "札幌駅から",
+    "smile.access.sapporo.detail": "タクシーで約10分",
+    "smile.access.beer": "サッポロビール園から",
+    "smile.access.beer.detail": "タクシーで約5分",
+    "smile.access.airport": "新千歳空港から",
+    "smile.access.airport.detail": "車で約55分 / リムジンバス約50分 / JR函館線約40分",
+    "amenities.title": "アメニティ",
+    "amenity.ac": "エアコン",
+    "amenity.heat": "暖房",
+    "amenity.wifi": "Wi-Fi",
+    "amenity.washer": "洗濯乾燥機",
+    "amenity.detergent": "洗濯洗剤",
+    "amenity.fridge": "冷蔵庫",
+    "amenity.microwave": "電子レンジ",
+    "amenity.kettle": "ケトル",
+    "amenity.ricecooker": "炊飯器",
+    "amenity.kitchen": "キッチン",
+    "amenity.stove": "IHコンロ",
+    "amenity.pan": "フライパン・鍋",
+    "amenity.tableware": "お皿・グラス・カトラリー一式",
+    "amenity.kids.tableware": "子供用食器一式",
+    "amenity.dishsoap": "食器洗剤・スポンジ",
+    "amenity.coffee": "コーヒーメーカー",
+    "amenity.toaster": "トースター",
+    "amenity.washbasin": "洗面台",
+    "amenity.shampoo": "シャンプー・コンディショナー",
+    "amenity.bodysoap": "ボディソープ",
+    "amenity.tissue": "ティッシュ",
+    "amenity.towel": "バスタオル・フェイスタオル",
+    "amenity.dryer": "ヘアドライヤー",
+    "amenity.toilet.paper": "トイレットペーパー",
+    "amenity.toothbrush": "歯ブラシ",
+    "amenity.bodysp": "ボディスポンジ",
+    "amenity.slipper": "スリッパ",
+    "amenity.parking2": "屋根付き駐車場2台",
+    "facilities.title": "設備",
+    "facility.parking": "駐車場",
+    "facility.living": "リビング",
+    "facility.balcony": "ベランダ",
+    "facility.kitchen": "キッチン",
+    "facility.ricecooker": "炊飯器",
+    "facility.fridge": "冷蔵庫",
+    "facility.ac": "エアコン",
+    "facility.bathroom": "バスルーム",
+    "facility.toilet": "トイレ",
+    "facility.washroom": "洗面台",
+    "facility.washer": "洗濯機",
+    "cleaning.title": "清掃について",
+    "cleaning.desc": "全てのお部屋で徹底した清掃・消毒を行っています。チェックアウト後、プロによる清掃・消毒が行われます。ベッドシーツやタオルなどは全て綺麗なものと毎回交換。",
+    "cta.book": "この施設を予約する",
+    "access.title": "新千歳空港からのアクセス",
+    "access.mini.title": "アクセス",
+    "access.car.title": "レンタカー / タクシー",
+    "access.car.desc": "高速道路に乗り「北広島IC」で降りる。新千歳空港から約40分で到着。",
+    "access.bus.title": "リムジンバス",
+    "access.bus.desc": "リムジンバス乗車、各施設最寄りバス停下車。約50〜60分で到着。",
+    "access.train.title": "JR / 地下鉄",
+    "access.train.desc": "JR快速エアポートで「札幌駅」下車。地下鉄乗り換えで各施設最寄り駅へ。約60分で到着。",
+    "nearby.title": "周辺施設紹介",
+    "nearby.desc": "THE SUN / THE MOON 周辺のおすすめスポット",
+    "nearby.highway": "高速道路IC",
+    "nearby.subway": "地下鉄",
+    "nearby.sento.desc": "日本の伝統的な公衆浴場",
+    "nearby.supermarket": "スーパーマーケット",
+    "nearby.ramen": "ラーメン",
+    "nearby.convenience": "コンビニ",
+    "nearby.soba": "蕎麦屋",
+    "nearby.yoshinoya": "牛丼屋",
+    "nearby.park": "公園",
+    "nearby.cafe": "カフェ",
+    "nearby.sushi": "回転寿司",
+    "footer.tagline": "北海道・札幌の貸切ゲストハウス",
+    "footer.cta.title": "全施設の空き状況を確認・予約する",
+    "footer.cta.desc": "直接予約で最安値保証。カレンダーで空き確認→日付選択→決済まで完結。",
+    "footer.cta.btn": "全施設の空き状況を確認・予約する",
+    "footer.booking": "予約・空き確認",
+  },
 
-  const TRANSLATIONS = {
-    ja: {
-      /* === ナビ === */
-      'nav.properties': '物件',
-      'nav.access': 'アクセス',
+  en: {
+    "nav.properties": "Properties",
+    "nav.access": "Access",
+    "nav.nearby": "Nearby",
+    "hero.eyebrow": "Hokkaido Sapporo / Private Guesthouse",
+    "hero.subtitle": "Stay like a local in Sapporo, relax with your family",
+    "hero.cta": "Book / Check Availability",
+    "properties.eyebrow": "Our Properties",
+    "properties.title": "Our Facilities",
+    "properties.desc": "Kuroten Stay Sapporo offers 4 private guesthouses in Sapporo.\nPerfect for group trips, families, and couples.",
+    "card.guests": "Up to",
+    "card.rooms": "rooms",
+    "badge.new": "NEW",
+    "gallery.exterior": "Exterior",
+    "gallery.living": "Living Room",
+    "gallery.kitchen": "Kitchen",
+    "gallery.bedroom": "Bedroom",
+    "gallery.bathroom": "Bathroom",
+    "gallery.washroom": "Washroom",
+    "gallery.night": "Night View",
+    "gallery.living2": "Dining",
+    "spec.capacity": "Capacity",
+    "spec.persons": " guests",
+    "spec.beds": "Beds",
+    "spec.beds.unit": " beds",
+    "spec.bedrooms": "Bedrooms",
+    "spec.rooms.unit": " rooms",
+    "spec.bathrooms": "Bathrooms",
+    "spec.floorplan": "Floor Plan",
+    "spec.parking": "Parking",
+    "spec.address": "Address",
+    "sun.desc": "A brand-new, spacious two-story house. Features 2 toilets, 1 bathtub bathroom, and 1 shower room. The 147㎡ home spans 3 floors. The 2nd floor has a kitchen, dining, and living area. Garage parking for 1 car (height limit: 2550mm). All rooms have AC and heating. A baby cot is available.",
+    "moon.desc": "A brand-new, spacious two-story house. Features 2 toilets, 1 bathtub bathroom, and 1 shower room. The 147㎡ home spans 3 floors. The 2nd floor has a kitchen, dining, and living area. Covered parking for 2 cars (height limit: 2550mm). All rooms have AC and heating. A baby cot is available.",
+    "smile.desc": "「SMILE」 is a private two-story house in Sapporo, just a 10-minute walk from the JR station. This 4LDK home comfortably accommodates up to 10 guests. Three of the four bedrooms are conveniently located on the 1st floor—so no need to carry heavy luggage upstairs—while the 2nd floor offers a bright, open living/dining/kitchen area. Perfect for families, groups, or long stays. With two covered free parking spaces, exploring Hokkaido by rental car is easy. A great base for sightseeing and business in central Sapporo.",
+    "sky.desc": "A 2LDK apartment in central Sapporo (Minami 2-jo Nishi 10-chome). 120㎡ spacious space. Brand new, opened July 2025. Walking distance 3 minutes from the nearest station. Excellent access to Susukino and Odori area. 75-inch TV with Amazon Prime Video & Netflix. Wi-Fi included. All rooms with AC and heating.",
+    "sun.parking": "Garage (1 car, height limit: 2550mm)",
+    "moon.parking": "Covered free parking (2 cars, height limit: 2550mm)",
+    "checkin.label": "Check-in",
+    "checkout.label": "Check-out",
+    "parking.label": "Parking",
+    "checkin.selfcheck": "(Self check-in via key box)",
+    "checkin.smartlock": "(Self check-in via smart lock)",
+    "bedroom.title": "Bedroom Details",
+    "bedroom.1": "Bedroom 1",
+    "bedroom.2": "Bedroom 2",
+    "bedroom.3": "Bedroom 3",
+    "bedroom.4": "Bedroom 4",
+    "bedroom.living": "Living Room",
+    "smile.tv": "75-inch TV (Amazon Prime Video / Netflix)",
+    "sky.tv": "75-inch TV (Amazon Prime Video / Netflix)",
+    "smile.amenity.bath2": "2 Bath & Toilet areas",
+    "houserules.title": "House Rules",
+    "houserules.smoking": "No smoking throughout the property (indoor smoking is not permitted)",
+    "houserules.party": "Parties and events are not allowed",
+    "houserules.pet": "Pets are not allowed",
+    "houserules.quiet": "Please keep noise to a minimum at night out of consideration for neighbors",
+    "smile.spec.bath": "1 (with bathtub) + 1 shower room",
+    "smile.spec.parking": "2 spaces (covered, height limit 2200mm, width 4000mm)",
+    "smile.parking": "Covered free parking ×2 (height limit 2200mm, width 4000mm)",
+    "smile.bedroom.a": "Bedroom A (Double×2 + Baby Cot)",
+    "smile.bedroom.b": "Bedroom B (Double×2)",
+    "smile.bedroom.c": "Bedroom C (Single×2)",
+    "smile.bedroom.d": "Bedroom D (Single×2)",
+    "smile.babycot": "Baby Cot",
+    "smile.amenityset": "Amenity Set",
+    "smile.closet": "Closet",
+    "smile.bedroom.1f": "1F Bedroom (Double)",
+    "smile.lifestyle.title": "Usage Scenes",
+    "smile.extra.bedrooms": "More Bedroom Photos",
+    "sun.nearby.title": "THE SUN Nearby",
+    "sun.nearby.desc": "Recommended spots in Toyohira Misono Area",
+    "smile.nearby.title": "THE SMILE Nearby",
+    "smile.nearby.desc": "Recommended spots in Sapporo Higashi Area",
+    "smile.access.title": "THE SMILE Access",
+    "smile.access.subway": "Subway Tozai Line",
+    "smile.access.subway.detail": "7 min walk / 3 min taxi from Kanjodori-Higashi Station",
+    "smile.access.sapporo": "From Sapporo Station",
+    "smile.access.sapporo.detail": "Approx. 10 min by taxi",
+    "smile.access.beer": "From Sapporo Beer Garden",
+    "smile.access.beer.detail": "Approx. 5 min by taxi",
+    "smile.access.airport": "From New Chitose Airport",
+    "smile.access.airport.detail": "Approx. 55 min by car / 50 min by bus / 40 min by JR Hakodate Line",
+    "amenities.title": "Amenities",
+    "amenity.ac": "Air Conditioning",
+    "amenity.heat": "Heating",
+    "amenity.wifi": "Wi-Fi",
+    "amenity.washer": "Washer/Dryer",
+    "amenity.detergent": "Laundry Detergent",
+    "amenity.fridge": "Refrigerator",
+    "amenity.microwave": "Microwave",
+    "amenity.kettle": "Electric Kettle",
+    "amenity.ricecooker": "Rice Cooker",
+    "amenity.kitchen": "Kitchen",
+    "amenity.stove": "IH Stove",
+    "amenity.pan": "Frying Pan & Pots",
+    "amenity.tableware": "Plates, Glasses & Cutlery",
+    "amenity.kids.tableware": "Kids Tableware",
+    "amenity.dishsoap": "Dish Soap & Sponge",
+    "amenity.coffee": "Coffee Maker",
+    "amenity.toaster": "Toaster",
+    "amenity.washbasin": "Washbasin",
+    "amenity.shampoo": "Shampoo & Conditioner",
+    "amenity.bodysoap": "Body Soap",
+    "amenity.tissue": "Tissue",
+    "amenity.towel": "Bath & Face Towels",
+    "amenity.dryer": "Hair Dryer",
+    "amenity.toilet.paper": "Toilet Paper",
+    "amenity.toothbrush": "Toothbrush",
+    "amenity.bodysp": "Body Sponge",
+    "amenity.slipper": "Slippers",
+    "amenity.parking2": "Covered Parking ×2",
+    "facilities.title": "Facilities",
+    "facility.parking": "Parking",
+    "facility.living": "Living Room",
+    "facility.balcony": "Balcony",
+    "facility.kitchen": "Kitchen",
+    "facility.ricecooker": "Rice Cooker",
+    "facility.fridge": "Refrigerator",
+    "facility.ac": "AC",
+    "facility.bathroom": "Bathroom",
+    "facility.toilet": "Toilet",
+    "facility.washroom": "Washroom",
+    "facility.washer": "Washer",
+    "cleaning.title": "Cleaning Policy",
+    "cleaning.desc": "Thorough cleaning and disinfection in all rooms. Professional cleaning after every checkout. Bed sheets and towels are replaced with fresh ones each time.",
+    "cta.book": "Book This Property",
+    "access.title": "Access from New Chitose Airport",
+    "access.mini.title": "Access",
+    "access.car.title": "Rental Car / Taxi",
+    "access.car.desc": "Take the expressway and exit at Kitahiroshima IC. Approx. 40 minutes from New Chitose Airport.",
+    "access.bus.title": "Limousine Bus",
+    "access.bus.desc": "Take the limousine bus to the nearest stop. Approx. 50–60 minutes.",
+    "access.train.title": "JR / Subway",
+    "access.train.desc": "Take JR Airport Rapid to Sapporo Station, then transfer to the subway. Approx. 60 minutes.",
+    "nearby.title": "Nearby Attractions",
+    "nearby.desc": "Recommended spots near THE SUN / THE MOON",
+    "nearby.highway": "Expressway IC",
+    "nearby.subway": "Subway Station",
+    "nearby.sento.desc": "Traditional Japanese public bath",
+    "nearby.supermarket": "Supermarket",
+    "nearby.ramen": "Ramen Restaurant",
+    "nearby.convenience": "Convenience Store",
+    "nearby.soba": "Soba Restaurant",
+    "nearby.yoshinoya": "Beef Bowl Restaurant",
+    "nearby.park": "Park",
+    "nearby.cafe": "Café",
+    "nearby.sushi": "Conveyor Belt Sushi",
+    "footer.tagline": "Private Guesthouses in Hokkaido, Sapporo",
+    "footer.cta.title": "Check Availability & Book All Properties",
+    "footer.cta.desc": "Best price guaranteed with direct booking. Check calendar → Select dates → Pay online.",
+    "footer.cta.btn": "Check Availability & Book",
+    "footer.booking": "Book / Availability",
+  },
 
-      /* === ヒーロー === */
-      'hero.eyebrow': '北海道 札幌 ／ 貸切ゲストハウス',
-      'hero.subtitle': '札幌で暮らすように、家族でくつろぐ',
-      'hero.cta': '予約・空き確認',
+  zh: {
+    "nav.properties": "房源",
+    "nav.access": "交通",
+    "nav.nearby": "周边设施",
+    "hero.eyebrow": "北海道 札幌 / 整栋民宿",
+    "hero.subtitle": "在札幌像居家一样生活，和家人一起放松",
+    "hero.cta": "预约 / 查询空房",
+    "properties.eyebrow": "Our Properties",
+    "properties.title": "设施介绍",
+    "properties.desc": "Kuroten Stay Sapporo在札幌市内提供4栋独栋民宿。\n适合团体旅行、家庭出行和情侣度假。",
+    "card.guests": "最多",
+    "card.rooms": "间",
+    "badge.new": "新房源",
+    "gallery.exterior": "外观",
+    "gallery.living": "客厅",
+    "gallery.kitchen": "厨房",
+    "gallery.bedroom": "卧室",
+    "gallery.bathroom": "浴室",
+    "gallery.washroom": "洗脸台",
+    "gallery.night": "夜景",
+    "gallery.living2": "餐厅",
+    "spec.capacity": "容纳人数",
+    "spec.persons": "名",
+    "spec.beds": "床位数",
+    "spec.beds.unit": "张",
+    "spec.bedrooms": "卧室数",
+    "spec.rooms.unit": "间",
+    "spec.bathrooms": "浴室数",
+    "spec.floorplan": "户型",
+    "spec.parking": "停车场",
+    "spec.address": "地址",
+    "sun.desc": "全新独栋房屋，宽敞舒适。设有2个厕所，1个带浴缸的浴室和1个淋浴间。3层楼共147平米，2楼设有厨房、餐厅和客厅。车库停车位1个（车高限制2550mm以下）。全部房间配备空调和暖气，提供安全舒适的住宿体验。配有婴儿床1张。",
+    "moon.desc": "全新独栋房屋，宽敞舒适。设有2个厕所，1个带浴缸的浴室和1个淋浴间。3层楼共147平米，2楼设有厨房、餐厅和客厅。有盖免费停车位2个（车高限制2550mm以下）。全部房间配备空调和暖气，提供安全舒适的住宿体验。配有婴儿床1张。",
+    "smile.desc": "「SMILE」是位于札幌市内、距离JR车站步行约10分钟的整栋出租独栋住宅。4LDK两层建筑，最多可容纳10位客人舒适入住。4间卧室中有3间设于1楼，无需搬运沉重行李上下楼；2楼则设有开阔明亮的客厅、餐厅和厨房。非常适合家庭、团体出游或长期入住。配有2个有盖免费停车位，自驾环游北海道也安心便捷。靠近札幌市中心，是观光与商务出行的理想落脚点。",
+    "sky.desc": "位于札幌市东区北9条东11丁目1-39（Mode Alive）的公寓，2LDK，120平米。2025年7月新开业。地铁东豊线「环状通东站」步行8分钟。75英寸大屏幕电视，可观看Amazon Prime Video和Netflix。提供Wi-Fi。全部房间配备空调和暖气。",
+    "sun.parking": "车库停车1台（车高限制2550mm以下）",
+    "moon.parking": "有盖免费停车场2台（车高限制2550mm以下）",
+    "checkin.label": "入住时间",
+    "checkout.label": "退房时间",
+    "parking.label": "停车场",
+    "checkin.selfcheck": "（密码箱自助入住）",
+    "checkin.smartlock": "（智能锁自助入住）",
+    "bedroom.title": "卧室详情",
+    "bedroom.1": "卧室1",
+    "bedroom.2": "卧室2",
+    "bedroom.3": "卧室3",
+    "bedroom.4": "卧室4",
+    "bedroom.living": "客厅",
+    "smile.tv": "75英寸电视（Amazon Prime Video / Netflix）",
+    "sky.tv": "75英寸电视（Amazon Prime Video / Netflix）",
+    "smile.amenity.bath2": "浴室・厕所2处",
+    "houserules.title": "入住规则",
+    "houserules.smoking": "全馆禁烟（谢绝在室内吸烟）",
+    "houserules.party": "谢绝举办派对和活动",
+    "houserules.pet": "谢绝携带宠物",
+    "houserules.quiet": "为照顾邻居，夜间请保持安静",
+    "smile.spec.bath": "1间（含浴缸）+ 1间淋浴室",
+    "smile.spec.parking": "2台（有盖，限高2200mm，有效宽4000mm）",
+    "smile.parking": "有盖免费停车场2台（限高2200mm，有效宽4000mm）",
+    "smile.bedroom.a": "卧室A（双人床×2＋婴儿床）",
+    "smile.bedroom.b": "卧室B（双人床×2）",
+    "smile.bedroom.c": "卧室C（单人床×2）",
+    "smile.bedroom.d": "卧室D（单人床×2）",
+    "smile.babycot": "婴儿床",
+    "smile.amenityset": "洗漱用品套装",
+    "smile.closet": "衣柜",
+    "smile.bedroom.1f": "1楼卧室（双人床）",
+    "smile.lifestyle.title": "使用场景",
+    "smile.extra.bedrooms": "更多卧室照片",
+    "sun.nearby.title": "THE SUN 周边设施",
+    "sun.nearby.desc": "丰平区美园周边推荐景点",
+    "smile.nearby.title": "THE SMILE 周边设施",
+    "smile.nearby.desc": "札幌东区推荐景点",
+    "smile.access.title": "THE SMILE 交通指南",
+    "smile.access.subway": "地铁东西线",
+    "smile.access.subway.detail": "環状通東站步行7分钟 / 出租车3分钟",
+    "smile.access.sapporo": "从札幌站",
+    "smile.access.sapporo.detail": "出租车约10分钟",
+    "smile.access.beer": "从札幌啤酒园",
+    "smile.access.beer.detail": "出租车约5分钟",
+    "smile.access.airport": "从新千岁机场",
+    "smile.access.airport.detail": "驾车约55分钟 / 机场巴士约50分钟 / JR函馆线约40分钟",
+    "amenities.title": "设施/用品",
+    "amenity.ac": "空调",
+    "amenity.heat": "暖气",
+    "amenity.wifi": "Wi-Fi",
+    "amenity.washer": "洗烘一体机",
+    "amenity.detergent": "洗衣液",
+    "amenity.fridge": "冰箱",
+    "amenity.microwave": "微波炉",
+    "amenity.kettle": "电热水壶",
+    "amenity.ricecooker": "电饭锅",
+    "amenity.kitchen": "厨房",
+    "amenity.stove": "IH电磁炉",
+    "amenity.pan": "平底锅和汤锅",
+    "amenity.tableware": "餐具套装",
+    "amenity.kids.tableware": "儿童餐具",
+    "amenity.dishsoap": "洗碗液和海绵",
+    "amenity.coffee": "咖啡机",
+    "amenity.toaster": "烤面包机",
+    "amenity.washbasin": "洗脸台",
+    "amenity.shampoo": "洗发水·护发素",
+    "amenity.bodysoap": "沐浴露",
+    "amenity.tissue": "纸巾",
+    "amenity.towel": "浴巾·毛巾",
+    "amenity.dryer": "吹风机",
+    "amenity.toilet.paper": "卫生纸",
+    "amenity.toothbrush": "牙刷",
+    "amenity.bodysp": "浴花",
+    "amenity.slipper": "拖鞋",
+    "amenity.parking2": "有盖停车场×2",
+    "facilities.title": "设备",
+    "facility.parking": "停车场",
+    "facility.living": "客厅",
+    "facility.balcony": "阳台",
+    "facility.kitchen": "厨房",
+    "facility.ricecooker": "电饭煲",
+    "facility.fridge": "冰箱",
+    "facility.ac": "空调",
+    "facility.bathroom": "浴室",
+    "facility.toilet": "厕所",
+    "facility.washroom": "洗脸台",
+    "facility.washer": "洗衣机",
+    "cleaning.title": "清洁说明",
+    "cleaning.desc": "所有房间进行彻底清洁和消毒。每次退房后由专业人员进行清洁消毒。床单和毛巾每次都更换新的。",
+    "cta.book": "预约此房源",
+    "access.title": "从新千岁机场的交通方式",
+    "access.mini.title": "交通",
+    "access.car.title": "租车 / 出租车",
+    "access.car.desc": "上高速，从「北广岛IC」下高速。从新千岁机场约40分钟到达。",
+    "access.bus.title": "机场巴士",
+    "access.bus.desc": "乘坐机场巴士，在各设施最近的站台下车。约50～60分钟到达。",
+    "access.train.title": "JR / 地铁",
+    "access.train.desc": "乘坐JR快速机场列车到「札幌站」，换乘地铁前往各设施最近的车站。约60分钟到达。",
+    "nearby.title": "周边设施介绍",
+    "nearby.desc": "THE SUN / THE MOON 周边推荐景点",
+    "nearby.highway": "高速IC",
+    "nearby.subway": "地铁站",
+    "nearby.sento.desc": "日本传统公共浴场",
+    "nearby.supermarket": "超市",
+    "nearby.ramen": "拉面店",
+    "nearby.convenience": "便利店",
+    "nearby.soba": "荞麦面店",
+    "nearby.yoshinoya": "牛肉饭店",
+    "nearby.park": "公园",
+    "nearby.cafe": "咖啡厅",
+    "nearby.sushi": "回转寿司",
+    "footer.tagline": "北海道·札幌整栋民宿",
+    "footer.cta.title": "查询所有房源空房状况并预约",
+    "footer.cta.desc": "直接预约享最低价保证。查询日历→选择日期→在线支付，一站完成。",
+    "footer.cta.btn": "查询空房并预约",
+    "footer.booking": "预约 / 查询空房",
+  }
+};
 
-      /* === プロパティ紹介 === */
-      'properties.eyebrow': 'Our Properties',
-      'properties.title': '施設のご案内',
-      'properties.desc': 'HOKKAIDO EARTHは、札幌市内に4つの貸切ゲストハウスをご用意しています。\nグループ旅行・ファミリー・カップルまで、さまざまなニーズにお応えします。',
-      'card.guests': '最大',
-      'card.rooms': '部屋',
+/* ============================================================
+   Apply translations to [data-i18n] elements
+   ============================================================ */
+function applyTranslations(lang) {
+  const data = i18nData[lang];
+  if (!data) return;
 
-      /* === スペック === */
-      'spec.capacity': '定員',
-      'spec.persons': '名',
-      'spec.beds': 'ベッド数',
-      'spec.beds.unit': '台',
-      'spec.bedrooms': '寝室',
-      'spec.rooms.unit': '部屋',
-      'spec.bathrooms': 'バスルーム',
-      'spec.address': '住所',
-
-      /* === チェックイン === */
-      'checkin.label': 'チェックイン',
-      'checkin.selfcheck': '（キーボックスによるセルフチェックイン）',
-      'checkout.label': 'チェックアウト',
-      'parking.label': '駐車場',
-
-      /* === アメニティ === */
-      'amenities.title': 'アメニティ',
-      'amenity.ac': 'エアコン',
-      'amenity.heat': '暖房',
-      'amenity.wifi': 'Wi-Fi',
-      'amenity.washer': '洗濯乾燥機',
-      'amenity.fridge': '冷蔵庫',
-      'amenity.microwave': '電子レンジ',
-      'amenity.kettle': 'ケトル',
-      'amenity.kitchen': 'キッチン',
-      'amenity.coffee': 'コーヒーメーカー',
-      'amenity.shampoo': 'シャンプー・コンディショナー',
-      'amenity.towel': 'バスタオル・フェイスタオル',
-      'amenity.dryer': 'ヘアドライヤー',
-      'amenity.toothbrush': '歯ブラシ',
-
-      /* === 清掃 === */
-      'cleaning.desc': '全てのお部屋で徹底した清掃・消毒を行っています。チェックアウト後、プロによる清掃・消毒が行われます。ベッドシーツやタオルなどは全て綺麗なものと毎回交換。',
-
-      /* === 物件説明 === */
-      'sun.desc': '新築で綺麗な、広々とした1軒家です。トイレは2つ、バスタブ付きお風呂1つ、シャワールーム1つがあります。1階から3階まである、147平米の広々空間のうち2階にはキッチン、ダイニング、リビングがあり、駐車場は車庫で、1階部分に1台分ご用意しております（車の高さ制限2550mm以下）。全部屋にエアコン、ヒーター共に設置しており、安心安全快適なご宿泊をお約束致します。ベビーベッドも1台設置しております。',
-      'sun.parking': '車庫付き1台（車高制限2550mm以下）',
-      'moon.desc': '新築・広々とした3階建て一軒家。最大12名まで宿泊可能で、豊平区美園の閑静な住宅街に位置しています。広いリビングダイニング、完備されたキッチン、2つのバスルームを備え、大人数でのご旅行に最適です。',
-      'moon.parking': '駐車場1台あり',
-      'smile.desc': '東区北8条東に位置する広々とした一軒家。最大10名が宿泊できる4部屋を備えています。明るく開放的なリビングと充実したキッチン設備で、グループ旅行やファミリー旅行に最適です。',
-      'smile.parking': '駐車場1台あり',
-      'sky.desc': '東区北9条東11丁目の静かな住宅街にある2階建て一軒家。最大10名まで宿泊でき、2つのゆったりとした寝室を備えています。シンプルで清潔感のある内装で、くつろぎのひとときをお過ごしいただけます。',
-      'sky.parking': '駐車場あり',
-
-      /* === CTA === */
-      'cta.book': 'この施設を予約する',
-
-      /* === アクセス === */
-      'access.eyebrow': 'Access',
-      'access.title': 'アクセス',
-      'access.airport': '新千歳空港から',
-      'access.airport.time': '車で約50分 / 電車＋地下鉄で約70分',
-      'access.station': '最寄り駅',
-      'access.note': '各施設へのルートはGoogleマップをご参照ください。',
-
-      /* === フッター === */
-      'footer.about': 'Kuroten Stay Sapporoは、札幌市内に4つの貸切ゲストハウスを展開しています。',
-      'footer.links': 'クイックリンク',
-      'footer.contact': 'お問い合わせ',
-      'footer.copyright': '© 2025 Kuroten Stay Sapporo. All rights reserved.',
-    },
-
-    en: {
-      /* === Nav === */
-      'nav.properties': 'Properties',
-      'nav.access': 'Access',
-
-      /* === Hero === */
-      'hero.eyebrow': 'Hokkaido, Sapporo / Exclusive Guesthouses',
-      'hero.subtitle': 'Live like a local, relax like a family',
-      'hero.cta': 'Check Availability',
-
-      /* === Properties === */
-      'properties.eyebrow': 'Our Properties',
-      'properties.title': 'Our Facilities',
-      'properties.desc': 'HOKKAIDO EARTH offers four exclusive guesthouses in Sapporo.\nPerfect for group trips, families, and couples.',
-      'card.guests': 'Up to',
-      'card.rooms': 'rooms',
-
-      /* === Specs === */
-      'spec.capacity': 'Capacity',
-      'spec.persons': ' guests',
-      'spec.beds': 'Beds',
-      'spec.beds.unit': '',
-      'spec.bedrooms': 'Bedrooms',
-      'spec.rooms.unit': '',
-      'spec.bathrooms': 'Bathrooms',
-      'spec.address': 'Address',
-
-      /* === Check-in === */
-      'checkin.label': 'Check-in',
-      'checkin.selfcheck': '(Self check-in with key box)',
-      'checkout.label': 'Check-out',
-      'parking.label': 'Parking',
-
-      /* === Amenities === */
-      'amenities.title': 'Amenities',
-      'amenity.ac': 'Air Conditioning',
-      'amenity.heat': 'Heating',
-      'amenity.wifi': 'Wi-Fi',
-      'amenity.washer': 'Washer/Dryer',
-      'amenity.fridge': 'Refrigerator',
-      'amenity.microwave': 'Microwave',
-      'amenity.kettle': 'Electric Kettle',
-      'amenity.kitchen': 'Full Kitchen',
-      'amenity.coffee': 'Coffee Maker',
-      'amenity.shampoo': 'Shampoo & Conditioner',
-      'amenity.towel': 'Bath & Face Towels',
-      'amenity.dryer': 'Hair Dryer',
-      'amenity.toothbrush': 'Toothbrush',
-
-      /* === Cleaning === */
-      'cleaning.desc': 'Thorough cleaning and disinfection in all rooms. After each checkout, professional cleaning and disinfection is performed. All bedsheets and towels are replaced fresh every time.',
-
-      /* === Property Descriptions === */
-      'sun.desc': 'A spacious, brand-new house. Features 2 toilets, 1 bathtub bathroom, and 1 shower room across 3 floors (147 sqm). The 2nd floor has a kitchen, dining, and living room. Garage parking for 1 car (height limit 2550mm). All rooms have air conditioning and heating. Baby cot available.',
-      'sun.parking': 'Garage parking for 1 car (height limit 2550mm)',
-      'moon.desc': 'A brand-new, spacious 3-story house accommodating up to 12 guests, located in the quiet residential Misono neighborhood. Features a large living/dining area, full kitchen, and 2 bathrooms. Perfect for large groups.',
-      'moon.parking': 'Parking for 1 car',
-      'smile.desc': 'A spacious house in Higashi Ward, accommodating up to 10 guests in 4 bedrooms. Bright open living room and fully equipped kitchen make it perfect for group and family trips.',
-      'smile.parking': 'Parking for 1 car',
-      'sky.desc': 'A 2-story house in the quiet Higashi Ward, accommodating up to 10 guests in 2 spacious bedrooms. Simple, clean interior for a relaxing stay.',
-      'sky.parking': 'Parking available',
-
-      /* === CTA === */
-      'cta.book': 'Book This Property',
-
-      /* === Access === */
-      'access.eyebrow': 'Access',
-      'access.title': 'Getting Here',
-      'access.airport': 'From New Chitose Airport',
-      'access.airport.time': 'Approx. 50 min by car / 70 min by train + subway',
-      'access.station': 'Nearest Station',
-      'access.note': 'Please refer to Google Maps for directions to each property.',
-
-      /* === Footer === */
-      'footer.about': 'Kuroten Stay Sapporo operates four exclusive guesthouses in Sapporo.',
-      'footer.links': 'Quick Links',
-      'footer.contact': 'Contact',
-      'footer.copyright': '© 2025 Kuroten Stay Sapporo. All rights reserved.',
-    },
-
-    zh: {
-      /* === 导航 === */
-      'nav.properties': '房源',
-      'nav.access': '交通',
-
-      /* === 英雄区域 === */
-      'hero.eyebrow': '北海道 札幌 / 整栋民宿',
-      'hero.subtitle': '像当地人一样生活，像家人一样放松',
-      'hero.cta': '查看空房',
-
-      /* === 房源介绍 === */
-      'properties.eyebrow': 'Our Properties',
-      'properties.title': '房源介绍',
-      'properties.desc': 'HOKKAIDO EARTH在札幌市内提供四栋独立民宿。\n适合团体旅行、家庭出游和情侣旅行。',
-      'card.guests': '最多',
-      'card.rooms': '间房',
-
-      /* === 规格 === */
-      'spec.capacity': '定员',
-      'spec.persons': '人',
-      'spec.beds': '床位',
-      'spec.beds.unit': '张',
-      'spec.bedrooms': '卧室',
-      'spec.rooms.unit': '间',
-      'spec.bathrooms': '浴室',
-      'spec.address': '地址',
-
-      /* === 入住/退房 === */
-      'checkin.label': '入住时间',
-      'checkin.selfcheck': '（密码箱自助入住）',
-      'checkout.label': '退房时间',
-      'parking.label': '停车场',
-
-      /* === 设施 === */
-      'amenities.title': '设施',
-      'amenity.ac': '空调',
-      'amenity.heat': '暖气',
-      'amenity.wifi': 'Wi-Fi',
-      'amenity.washer': '洗衣烘干机',
-      'amenity.fridge': '冰箱',
-      'amenity.microwave': '微波炉',
-      'amenity.kettle': '电热水壶',
-      'amenity.kitchen': '厨房',
-      'amenity.coffee': '咖啡机',
-      'amenity.shampoo': '洗发水・护发素',
-      'amenity.towel': '浴巾・毛巾',
-      'amenity.dryer': '吹风机',
-      'amenity.toothbrush': '牙刷',
-
-      /* === 清洁 === */
-      'cleaning.desc': '所有房间均进行彻底清洁和消毒。每次退房后，由专业人员进行清洁和消毒。床单、毛巾等每次均更换全新的。',
-
-      /* === 房源描述 === */
-      'sun.desc': '全新宽敞的独栋住宅，拥有2个厕所、1个带浴缸的浴室和1个淋浴间，共3层（147平方米）。2楼设有厨房、餐厅和客厅。车库可停1辆车（高度限制2550mm）。所有房间配备空调和暖气。提供婴儿床。',
-      'sun.parking': '车库停车位1个（高度限制2550mm）',
-      'moon.desc': '全新宽敞的3层独栋住宅，最多可容纳12人，位于丰平区美园的安静住宅区。宽敞的客餐厅、完整厨房设备及2个浴室，非常适合大团体旅行。',
-      'moon.parking': '停车位1个',
-      'smile.desc': '位于东区北8条东的宽敞独栋，4间卧室最多可容纳10人。明亮开放的客厅和齐全的厨房设施，非常适合团体和家庭旅行。',
-      'smile.parking': '停车位1个',
-      'sky.desc': '位于东区北9条东11丁目安静住宅区的2层独栋，2间宽敞卧室最多可容纳10人。简洁清爽的室内装潢，让您尽情放松。',
-      'sky.parking': '提供停车位',
-
-      /* === CTA === */
-      'cta.book': '预订此房源',
-
-      /* === 交通 === */
-      'access.eyebrow': 'Access',
-      'access.title': '交通方式',
-      'access.airport': '从新千岁机场',
-      'access.airport.time': '开车约50分钟 / 火车+地铁约70分钟',
-      'access.station': '最近车站',
-      'access.note': '请参考谷歌地图查看各房源的路线。',
-
-      /* === 页脚 === */
-      'footer.about': 'Kuroten Stay Sapporo 在札幌市内运营四栋独立民宿。',
-      'footer.links': '快速链接',
-      'footer.contact': '联系方式',
-      'footer.copyright': '© 2025 Kuroten Stay Sapporo. 版权所有。',
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (data[key] !== undefined) {
+      const val = data[key];
+      // 改行を含む場合は innerHTML で <br> に変換
+      if (val.includes('\n')) {
+        el.innerHTML = val.replace(/\n/g, '<br>');
+      } else {
+        el.textContent = val;
+      }
     }
-  };
+  });
 
-  let currentLang = 'ja';
+  // html の lang 属性更新
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang;
 
-  function applyTranslations(lang) {
-    const t = TRANSLATIONS[lang];
-    if (!t) return;
-    currentLang = lang;
+  // 言語ボタンのアクティブ状態更新
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    const isActive = btn.getAttribute('data-lang') === lang;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
 
-    document.documentElement.lang = lang;
+  // 設定を保存
+  try {
+    localStorage.setItem('kuroten-lang', lang);
+  } catch (_) {}
+}
 
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-      const key = el.getAttribute('data-i18n');
-      if (t[key] !== undefined) {
-        el.textContent = t[key];
+/* ============================================================
+   Initialize
+   ============================================================ */
+function initI18n() {
+  // 優先順位: localStorage → ブラウザ言語 → ja
+  let savedLang = 'ja';
+  try {
+    savedLang = localStorage.getItem('kuroten-lang') || 'ja';
+  } catch (_) {}
+
+  // 未対応言語の場合はブラウザ言語でフォールバック
+  if (!i18nData[savedLang]) {
+    const browserLang = (navigator.language || '').slice(0, 2);
+    savedLang = i18nData[browserLang] ? browserLang : 'ja';
+  }
+
+  applyTranslations(savedLang);
+
+  // 言語ボタンのクリックイベント
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const lang = btn.getAttribute('data-lang');
+      if (lang && i18nData[lang]) {
+        applyTranslations(lang);
       }
     });
+  });
+}
 
-    // Update lang buttons
-    document.querySelectorAll('.lang-btn').forEach(btn => {
-      const active = btn.dataset.lang === lang;
-      btn.classList.toggle('active', active);
-      btn.setAttribute('aria-pressed', String(active));
-    });
+document.addEventListener('DOMContentLoaded', initI18n);
 
-    // Save preference
-    try {
-      localStorage.setItem('kuroten-lang', lang);
-    } catch (e) {}
-  }
-
-  function getStoredLang() {
-    try {
-      return localStorage.getItem('kuroten-lang');
-    } catch (e) {
-      return null;
-    }
-  }
-
-  function getBrowserLang() {
-    const nav = navigator.language || navigator.userLanguage || 'ja';
-    if (nav.startsWith('zh')) return 'zh';
-    if (nav.startsWith('en')) return 'en';
-    return 'ja';
-  }
-
-  function initI18n() {
-    const stored = getStoredLang();
-    const initial = stored || getBrowserLang();
-
-    // Bind lang buttons
-    document.querySelectorAll('.lang-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const lang = btn.dataset.lang;
-        if (lang && TRANSLATIONS[lang]) {
-          applyTranslations(lang);
-        }
-      });
-    });
-
-    // Apply initial language
-    applyTranslations(initial);
-  }
-
-  // Expose API
-  window.KurotenI18n = {
-    setLang: applyTranslations,
-    getLang: () => currentLang,
-    t: (key) => (TRANSLATIONS[currentLang] || {})[key] || key,
-  };
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initI18n);
-  } else {
-    initI18n();
-  }
-})();
+// グローバル参照
+window.KurotenI18n = { applyTranslations, i18nData };
