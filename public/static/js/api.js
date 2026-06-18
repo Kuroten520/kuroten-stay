@@ -1,296 +1,428 @@
-/* ============================================================
-   Kuroten Stay Sapporo — api.js
-   window.KurotenApi — フロントエンド APIクライアント
-   (実際のバックエンドAPIが実装されたら接続先を変更)
-   ============================================================ */
+/**
+ * Kuroten Stay Sapporo — API クライアント共通処理
+ * バックエンド (Hono) との通信を一元管理するモジュール
+ */
 
-(function () {
-  'use strict';
+// ============================================================
+// 設定
+// ============================================================
+const API_BASE_URL = window.KUROTEN_CONFIG?.apiBaseUrl || 'http://localhost:3000'
 
-  // ---- helpers ----
-  async function request(method, path, body) {
-    const opts = {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-    };
-    const token = KurotenApi.Auth.getToken();
-    if (token) opts.headers['Authorization'] = 'Bearer ' + token;
-    if (body) opts.body = JSON.stringify(body);
+// ============================================================
+// トークン管理
+// ============================================================
+const TokenManager = {
+  getAccessToken: () => localStorage.getItem('kuroten_access_token'),
+  setAccessToken: (token) => localStorage.setItem('kuroten_access_token', token),
+  clearAccessToken: () => localStorage.removeItem('kuroten_access_token'),
 
-    const res = await fetch('/api' + path, opts);
-    if (res.status === 204) return null;
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw Object.assign(new Error(data.message || 'API error'), { status: res.status, data });
-    return data;
-  }
+  getUser: () => {
+    const raw = localStorage.getItem('kuroten_user')
+    try { return raw ? JSON.parse(raw) : null } catch { return null }
+  },
+  setUser: (user) => localStorage.setItem('kuroten_user', JSON.stringify(user)),
+  clearUser: () => localStorage.removeItem('kuroten_user'),
 
-  // ================================================================
-  //   Auth
-  // ================================================================
-  const Auth = {
-    TOKEN_KEY: 'kuroten-token',
-    USER_KEY:  'kuroten-user',
+  isLoggedIn: () => !!TokenManager.getAccessToken(),
+  isOwner: () => TokenManager.getUser()?.role === 'owner',
+}
 
-    getToken() {
-      try { return localStorage.getItem(this.TOKEN_KEY); } catch { return null; }
-    },
-    setToken(t) {
-      try { localStorage.setItem(this.TOKEN_KEY, t); } catch {}
-    },
-    getUser() {
-      try { return JSON.parse(localStorage.getItem(this.USER_KEY) || 'null'); } catch { return null; }
-    },
-    setUser(u) {
-      try { localStorage.setItem(this.USER_KEY, JSON.stringify(u)); } catch {}
-    },
-    clear() {
-      try {
-        localStorage.removeItem(this.TOKEN_KEY);
-        localStorage.removeItem(this.USER_KEY);
-      } catch {}
-    },
-    isLoggedIn() {
-      return !!this.getToken();
-    },
+// ============================================================
+// HTTPクライアント（自動リフレッシュ付き）
+// ============================================================
+const http = {
+  /**
+   * 共通fetchラッパー
+   * アクセストークン付与・401時の自動リフレッシュを行う
+   */
+  async request(path, options = {}) {
+    const url = `${API_BASE_URL}${path}`
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    }
 
-    /** ログイン */
-    async login(email, password) {
-      // Demo implementation (replace with real API call)
-      if (email && password) {
-        const user = {
-          id: Date.now(),
-          email,
-          name: email.split('@')[0],
-          role: 'user',
-        };
-        const token = 'demo_token_' + Date.now();
-        this.setToken(token);
-        this.setUser(user);
-        return { user, token };
+    // アクセストークンをヘッダーに付与
+    const accessToken = TokenManager.getAccessToken()
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`
+    }
+
+    let response = await fetch(url, {
+      ...options,
+      headers,
+      credentials: 'include', // Cookie（リフレッシュトークン）を送信
+    })
+
+    // 401の場合 → トークンリフレッシュを試みる
+    if (response.status === 401 && !options._retry) {
+      const refreshed = await http.refreshToken()
+      if (refreshed) {
+        // リトライ
+        headers['Authorization'] = `Bearer ${TokenManager.getAccessToken()}`
+        response = await fetch(url, {
+          ...options,
+          headers,
+          credentials: 'include',
+          _retry: true,
+        })
+      } else {
+        // リフレッシュも失敗 → ログアウト
+        Auth.logout()
+        return { error: 'セッションが切れました。再ログインしてください。', status: 401 }
       }
-      throw new Error('メールアドレスまたはパスワードが正しくありません');
-      // Real API:
-      // const data = await request('POST', '/auth/login', { email, password });
-      // this.setToken(data.token);
-      // this.setUser(data.user);
-      // return data;
-    },
+    }
 
-    /** 会員登録 */
-    async register(payload) {
-      // Demo implementation
-      const user = {
-        id: Date.now(),
-        email: payload.email,
-        name: payload.name || payload.email.split('@')[0],
-        role: 'user',
-      };
-      const token = 'demo_token_' + Date.now();
-      this.setToken(token);
-      this.setUser(user);
-      return { user, token };
-      // Real API:
-      // const data = await request('POST', '/auth/register', payload);
-      // this.setToken(data.token);
-      // this.setUser(data.user);
-      // return data;
-    },
+    // レスポンス解析
+    if (response.status === 204) return { data: null, status: 204 }
 
-    /** ログアウト */
-    async logout() {
-      this.clear();
-      // Real API: await request('POST', '/auth/logout');
-    },
+    const data = await response.json().catch(() => ({}))
+    return { data, status: response.status, ok: response.ok }
+  },
 
-    /** プロフィール取得 */
-    async getProfile() {
-      const user = this.getUser();
-      if (user) return user;
-      throw new Error('Not authenticated');
-      // Real API: return request('GET', '/auth/profile');
-    },
-  };
+  // リフレッシュトークンでアクセストークン更新
+  async refreshToken() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!response.ok) return false
+      const { accessToken } = await response.json()
+      TokenManager.setAccessToken(accessToken)
+      return true
+    } catch {
+      return false
+    }
+  },
 
-  // ================================================================
-  //   Bookings
-  // ================================================================
-  const Bookings = {
-    DEMO_BOOKINGS: [],
+  get: (path, options = {}) =>
+    http.request(path, { ...options, method: 'GET' }),
 
-    /** 予約一覧取得 */
-    async list() {
-      // Demo: return stored bookings
-      return [...this.DEMO_BOOKINGS];
-      // Real API: return request('GET', '/bookings');
-    },
+  post: (path, body, options = {}) =>
+    http.request(path, {
+      ...options,
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 
-    /** 予約作成 */
-    async create(payload) {
-      const booking = {
-        id: 'KR-' + Date.now(),
-        ...payload,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-      };
-      this.DEMO_BOOKINGS.push(booking);
-      return booking;
-      // Real API: return request('POST', '/bookings', payload);
-    },
+  put: (path, body, options = {}) =>
+    http.request(path, {
+      ...options,
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
 
-    /** 予約詳細 */
-    async get(id) {
-      const b = this.DEMO_BOOKINGS.find(x => x.id === id);
-      if (!b) throw new Error('予約が見つかりません');
-      return b;
-      // Real API: return request('GET', `/bookings/${id}`);
-    },
+  patch: (path, body, options = {}) =>
+    http.request(path, {
+      ...options,
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
 
-    /** 予約キャンセル */
-    async cancel(id) {
-      const b = this.DEMO_BOOKINGS.find(x => x.id === id);
-      if (b) b.status = 'cancelled';
-      return b;
-      // Real API: return request('DELETE', `/bookings/${id}`);
-    },
-  };
+  delete: (path, options = {}) =>
+    http.request(path, { ...options, method: 'DELETE' }),
+}
 
-  // ================================================================
-  //   Properties
-  // ================================================================
-  const Properties = {
-    DEMO: [
-      {
-        id: 'sun',
-        name: 'THE SUN',
-        location: '北海道札幌市豊平区美園6条7丁目1-7',
-        capacity: 11,
-        beds: 7,
-        bedrooms: 4,
-        bathrooms: 2,
-        image: 'https://www.genspark.ai/api/files/s/K59E9l7m',
-        bookingUrl: 'https://booking.airhost.co/ja/ACCOUNT_ID/',
-      },
-      {
-        id: 'moon',
-        name: 'THE MOON',
-        location: '北海道札幌市豊平区美園6条7丁目',
-        capacity: 12,
-        beds: 8,
-        bedrooms: 4,
-        bathrooms: 2,
-        image: 'https://www.genspark.ai/api/files/s/U79RlOAt',
-        bookingUrl: 'https://booking.airhost.co/ja/ACCOUNT_ID/',
-      },
-      {
-        id: 'smile',
-        name: 'THE SMILE',
-        location: '北海道札幌市東区北8条東16丁目',
-        capacity: 10,
-        beds: 6,
-        bedrooms: 4,
-        bathrooms: 1,
-        image: 'https://www.genspark.ai/api/files/s/LP6yMCRj',
-        bookingUrl: 'https://booking.airhost.co/ja/ACCOUNT_ID/',
-      },
-      {
-        id: 'sky',
-        name: 'THE SKY',
-        location: '北海道札幌市東区北9条東11丁目',
-        capacity: 10,
-        beds: 4,
-        bedrooms: 2,
-        bathrooms: 1,
-        image: 'https://www.genspark.ai/api/files/s/CWWCQbTG',
-        bookingUrl: 'https://booking.airhost.co/ja/ACCOUNT_ID/',
-      },
-    ],
+// ============================================================
+// 認証 API
+// ============================================================
+const Auth = {
+  /**
+   * 新規ゲスト登録
+   * @param {{ email, password, firstName, lastName, phone?, nationality? }} data
+   */
+  async register(data) {
+    const { data: result, status, ok } = await http.post('/api/auth/register', data)
+    if (!ok) throw new ApiError(result?.error || '登録に失敗しました', status)
+    return result
+  },
 
-    /** 物件一覧 */
-    async list() {
-      return [...this.DEMO];
-      // Real API: return request('GET', '/properties');
-    },
+  /**
+   * ログイン（ゲスト・オーナー共通）
+   * @param {{ email, password }} credentials
+   */
+  async login(credentials) {
+    const { data: result, status, ok } = await http.post('/api/auth/login', credentials)
+    if (!ok) throw new ApiError(result?.error || 'ログインに失敗しました', status)
 
-    /** 物件詳細 */
-    async get(id) {
-      const p = this.DEMO.find(x => x.id === id);
-      if (!p) throw new Error('物件が見つかりません');
-      return p;
-      // Real API: return request('GET', `/properties/${id}`);
-    },
-  };
+    // トークン・ユーザー情報を保存
+    TokenManager.setAccessToken(result.accessToken)
+    TokenManager.setUser(result.user)
 
-  // ================================================================
-  //   Admin (管理者専用)
-  // ================================================================
-  const Admin = {
-    /** 予約一覧（全件） */
-    async getBookings(params) {
-      // Real API: return request('GET', '/admin/bookings?' + new URLSearchParams(params));
-      return [];
-    },
+    // 認証状態変更イベント発火
+    window.dispatchEvent(new CustomEvent('kuroten:auth-change', {
+      detail: { loggedIn: true, user: result.user }
+    }))
 
-    /** 予約ステータス更新 */
-    async updateBookingStatus(id, status) {
-      // Real API: return request('PATCH', `/admin/bookings/${id}/status`, { status });
-      return { id, status };
-    },
+    return result.user
+  },
 
-    /** 問い合わせ一覧 */
-    async getInquiries() {
-      // Real API: return request('GET', '/admin/inquiries');
-      return [];
-    },
+  /**
+   * ログアウト
+   */
+  async logout() {
+    try {
+      await http.post('/api/auth/logout', {})
+    } finally {
+      TokenManager.clearAccessToken()
+      TokenManager.clearUser()
+      window.dispatchEvent(new CustomEvent('kuroten:auth-change', {
+        detail: { loggedIn: false }
+      }))
+      window.location.href = '/'
+    }
+  },
 
-    /** 問い合わせ解決 */
-    async resolveInquiry(id) {
-      // Real API: return request('PATCH', `/admin/inquiries/${id}/resolve`);
-      return { id, status: 'resolved' };
-    },
+  /**
+   * 自分のプロフィール取得
+   */
+  async getMe() {
+    const { data, status, ok } = await http.get('/api/auth/me')
+    if (!ok) throw new ApiError(data?.error || 'プロフィール取得に失敗しました', status)
+    return data
+  },
 
-    /** ユーザー一覧 */
-    async getUsers() {
-      // Real API: return request('GET', '/admin/users');
-      return [];
-    },
+  /**
+   * プロフィール更新
+   */
+  async updateMe(updateData) {
+    const { data, status, ok } = await http.put('/api/auth/me', updateData)
+    if (!ok) throw new ApiError(data?.error || '更新に失敗しました', status)
+    TokenManager.setUser({ ...TokenManager.getUser(), ...data })
+    return data
+  },
 
-    /** 統計情報 */
-    async getStats() {
-      // Real API: return request('GET', '/admin/stats');
-      return {
-        bookingsThisMonth: 47,
-        occupancyRate: 78,
-        revenueThisMonth: 1860000,
-        openInquiries: 3,
-      };
-    },
-  };
+  /** 現在のユーザー情報 */
+  currentUser: () => TokenManager.getUser(),
+  isLoggedIn: () => TokenManager.isLoggedIn(),
+  isOwner: () => TokenManager.isOwner(),
+}
 
-  // ================================================================
-  //   Inquiry (問い合わせ)
-  // ================================================================
-  const Inquiry = {
-    /** 問い合わせ送信 */
-    async send(payload) {
-      // Demo: log to console
-      console.info('[KurotenApi.Inquiry.send]', payload);
-      return { success: true, id: Date.now() };
-      // Real API: return request('POST', '/inquiries', payload);
-    },
-  };
+// ============================================================
+// 物件 API
+// ============================================================
+const PropertiesApi = {
+  /**
+   * 物件一覧取得
+   */
+  async list() {
+    const { data, ok, status } = await http.get('/api/properties')
+    if (!ok) throw new ApiError(data?.error || '物件一覧の取得に失敗しました', status)
+    return data.properties
+  },
 
-  // ================================================================
-  //   Expose globally
-  // ================================================================
-  window.KurotenApi = {
-    Auth,
-    Bookings,
-    Properties,
-    Admin,
-    Inquiry,
-    // Utility
-    _request: request,
-  };
+  /**
+   * 物件詳細取得
+   * @param {string} id - 物件ID または slug ('sun'|'moon'|'smile'|'sky')
+   */
+  async get(id) {
+    const { data, ok, status } = await http.get(`/api/properties/${id}`)
+    if (!ok) throw new ApiError(data?.error || '物件情報の取得に失敗しました', status)
+    return data
+  },
 
-})();
+  /**
+   * 空き状況確認
+   * @param {string} propertyId
+   * @param {string} checkinDate  - 'YYYY-MM-DD'
+   * @param {string} checkoutDate - 'YYYY-MM-DD'
+   */
+  async checkAvailability(propertyId, checkinDate, checkoutDate) {
+    const params = new URLSearchParams({ checkinDate, checkoutDate })
+    const { data, ok, status } = await http.get(
+      `/api/properties/${propertyId}/availability?${params}`
+    )
+    if (!ok) throw new ApiError(data?.error || '空き確認に失敗しました', status)
+    return data // { available: boolean, blockedDates: string[] }
+  },
+}
+
+// ============================================================
+// 予約 API
+// ============================================================
+const BookingsApi = {
+  /**
+   * 自分の予約一覧
+   */
+  async list() {
+    const { data, ok, status } = await http.get('/api/bookings')
+    if (!ok) throw new ApiError(data?.error || '予約一覧の取得に失敗しました', status)
+    return data.bookings
+  },
+
+  /**
+   * 予約詳細取得
+   * @param {string} bookingId
+   */
+  async get(bookingId) {
+    const { data, ok, status } = await http.get(`/api/bookings/${bookingId}`)
+    if (!ok) throw new ApiError(data?.error || '予約情報の取得に失敗しました', status)
+    return data
+  },
+
+  /**
+   * 新規予約作成
+   * @param {{
+   *   propertyId: string,
+   *   checkinDate: string,   // 'YYYY-MM-DD'
+   *   checkoutDate: string,  // 'YYYY-MM-DD'
+   *   guestCount: number,
+   *   adultCount: number,
+   *   childCount?: number,
+   *   infantCount?: number,
+   *   guestNote?: string
+   * }} bookingData
+   */
+  async create(bookingData) {
+    const { data, ok, status } = await http.post('/api/bookings', bookingData)
+    if (!ok) throw new ApiError(data?.error || '予約の作成に失敗しました', status)
+    return data.booking
+  },
+
+  /**
+   * 予約キャンセル
+   * @param {string} bookingId
+   */
+  async cancel(bookingId) {
+    const { data, ok, status } = await http.delete(`/api/bookings/${bookingId}`)
+    if (!ok) throw new ApiError(data?.error || 'キャンセルに失敗しました', status)
+    return data
+  },
+}
+
+// ============================================================
+// 問い合わせ API
+// ============================================================
+const ContactsApi = {
+  /**
+   * 問い合わせ送信
+   * @param {{
+   *   name: string,
+   *   email: string,
+   *   phone?: string,
+   *   category: string,
+   *   subject: string,
+   *   message: string,
+   *   propertySlug?: string
+   * }} contactData
+   */
+  async send(contactData) {
+    const { data, ok, status } = await http.post('/api/contacts', contactData)
+    if (!ok) throw new ApiError(data?.error || '送信に失敗しました', status)
+    return data
+  },
+}
+
+// ============================================================
+// 管理者 API（オーナー専用）
+// ============================================================
+const AdminApi = {
+  /**
+   * ダッシュボード統計取得
+   */
+  async getStats() {
+    const { data, ok, status } = await http.get('/api/admin/stats')
+    if (!ok) throw new ApiError(data?.error || '統計情報の取得に失敗しました', status)
+    return data
+  },
+
+  /**
+   * 全予約一覧（フィルター付き）
+   * @param {{ status?, propertySlug?, page?, limit? }} params
+   */
+  async listBookings(params = {}) {
+    const query = new URLSearchParams(params).toString()
+    const { data, ok, status } = await http.get(`/api/admin/bookings?${query}`)
+    if (!ok) throw new ApiError(data?.error || '予約一覧の取得に失敗しました', status)
+    return data
+  },
+
+  /**
+   * 予約ステータス更新
+   * @param {string} bookingId
+   * @param {string} newStatus
+   */
+  async updateBookingStatus(bookingId, newStatus) {
+    const { data, ok, status } = await http.put(
+      `/api/admin/bookings/${bookingId}/status`,
+      { status: newStatus }
+    )
+    if (!ok) throw new ApiError(data?.error || 'ステータスの更新に失敗しました', status)
+    return data
+  },
+
+  /**
+   * 全問い合わせ一覧
+   * @param {{ status?, page?, limit? }} params
+   */
+  async listContacts(params = {}) {
+    const query = new URLSearchParams(params).toString()
+    const { data, ok, status } = await http.get(`/api/admin/contacts?${query}`)
+    if (!ok) throw new ApiError(data?.error || '問い合わせ一覧の取得に失敗しました', status)
+    return data
+  },
+
+  /**
+   * 問い合わせへの返信
+   * @param {string} contactId
+   * @param {{ reply: string }} replyData
+   */
+  async replyContact(contactId, replyData) {
+    const { data, ok, status } = await http.put(
+      `/api/admin/contacts/${contactId}/reply`,
+      replyData
+    )
+    if (!ok) throw new ApiError(data?.error || '返信の送信に失敗しました', status)
+    return data
+  },
+
+  /**
+   * ユーザー一覧
+   * @param {{ page?, limit?, search? }} params
+   */
+  async listUsers(params = {}) {
+    const query = new URLSearchParams(params).toString()
+    const { data, ok, status } = await http.get(`/api/admin/users?${query}`)
+    if (!ok) throw new ApiError(data?.error || 'ユーザー一覧の取得に失敗しました', status)
+    return data
+  },
+
+  /**
+   * 物件情報更新
+   * @param {string} propertyId
+   * @param {object} updateData
+   */
+  async updateProperty(propertyId, updateData) {
+    const { data, ok, status } = await http.put(
+      `/api/admin/properties/${propertyId}`,
+      updateData
+    )
+    if (!ok) throw new ApiError(data?.error || '物件情報の更新に失敗しました', status)
+    return data
+  },
+}
+
+// ============================================================
+// エラークラス
+// ============================================================
+class ApiError extends Error {
+  constructor(message, statusCode) {
+    super(message)
+    this.name = 'ApiError'
+    this.statusCode = statusCode
+  }
+}
+
+// ============================================================
+// グローバル公開
+// ============================================================
+window.KurotenApi = {
+  Auth,
+  Properties: PropertiesApi,
+  Bookings: BookingsApi,
+  Contacts: ContactsApi,
+  Admin: AdminApi,
+  TokenManager,
+  ApiError,
+}
