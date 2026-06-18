@@ -3,11 +3,19 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:sandbox": "wrangler pages dev dist --ip 0.0.0.0 --port 3000",
+    "dev:sandbox": "wrangler pages dev dist --d1=kuroten-production --local --ip 0.0.0.0 --port 3000",
     "build": "vite build && echo '{\"version\":1,\"include\":[\"/api/*\"],\"exclude\":[]}' > dist/_routes.json",
     "preview": "wrangler pages dev dist",
     "deploy": "npm run build && wrangler pages deploy dist",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "db:create": "wrangler d1 create kuroten-production",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:prod": "wrangler d1 migrations apply DB",
+    "db:seed:local": "wrangler d1 execute DB --local --file=./migrations/0002_seed_data.sql",
+    "db:seed:prod": "wrangler d1 execute DB --file=./migrations/0002_seed_data.sql",
+    "db:reset:local": "rm -rf .wrangler/state/v3/d1 && npm run db:migrate:local && npm run db:seed:local",
+    "db:query:local": "wrangler d1 execute DB --local --command",
+    "db:query:prod": "wrangler d1 execute DB --command"
   },
   "dependencies": {
     "hono": "^4.12.23"

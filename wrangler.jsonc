@@ -3,32 +3,39 @@
   "name": "webapp",
   "compatibility_date": "2025-05-03",
   "pages_build_output_dir": "./dist",
-  "compatibility_flags": [
-    "nodejs_compat"
+  "compatibility_flags": ["nodejs_compat"],
+
+  // ============================================================
+  // Cloudflare D1 データベース
+  // 手順:
+  //   npx wrangler d1 create kuroten-production
+  //   → 出力された database_id を下記に設定
+  // ============================================================
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kuroten-production",
+      "database_id": "local-dev-placeholder"
+    }
   ]
-  // "vars": {
-  //   "MY_VAR": "my-variable"
-  // },
+
+  // ============================================================
+  // 環境変数（Secrets）
+  // 本番設定手順:
+  //   npx wrangler pages secret put JWT_SECRET
+  //   npx wrangler pages secret put REFRESH_SECRET
+  //
+  // ローカル開発: .dev.vars ファイルに記述（下記参照）
+  // ============================================================
+
+  // ============================================================
+  // KV Namespace（将来拡張用）
+  // ============================================================
   // "kv_namespaces": [
   //   {
-  //     "binding": "MY_KV_NAMESPACE",
-  //     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  //     "binding": "KV",
+  //     "id": "YOUR_KV_ID",
+  //     "preview_id": "YOUR_KV_PREVIEW_ID"
   //   }
-  // ],
-  // "r2_buckets": [
-  //   {
-  //     "binding": "MY_BUCKET",
-  //     "bucket_name": "my-bucket"
-  //   }
-  // ],
-  // "d1_databases": [
-  //   {
-  //     "binding": "MY_DB",
-  //     "database_name": "my-database",
-  //     "database_id": ""
-  //   }
-  // ],
-  // "ai": {
-  //   "binding": "AI"
-  // }
+  // ]
 }
