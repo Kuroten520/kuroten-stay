@@ -3,11 +3,19 @@ import { serveStatic } from 'hono/cloudflare-workers'
 
 const app = new Hono()
 
-// Serve static CSS/JS files
+// Serve static files (CSS, JS, images)
 app.use('/static/*', serveStatic({ root: './' }))
 
-// Serve index.html for all routes (SPA pattern)
+// Admin page
+app.get('/admin', serveStatic({ path: './admin.html' }))
+
+// Root → index.html
 app.get('/', serveStatic({ path: './index.html' }))
-app.get('/*', serveStatic({ root: './' }))
+
+// Fallback: serve any HTML files from public directory
+app.get('/:file{.+\\.html}', serveStatic({ root: './' }))
+
+// Catch-all → index.html (SPA pattern)
+app.get('/*', serveStatic({ path: './index.html' }))
 
 export default app

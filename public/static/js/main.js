@@ -1,456 +1,540 @@
 /* ============================================================
-   HOKKAIDO EARTH — Main JavaScript
+   Kuroten Stay Sapporo — main.js
+   ヒーロースライドショー、ギャラリー、ライトボックス、
+   スクロールアニメーション、マップタブ、ハンバーガーメニュー
    ============================================================ */
 
-'use strict';
+(function () {
+  'use strict';
 
-/* ---------- DOM Ready ---------- */
-document.addEventListener('DOMContentLoaded', () => {
-  initHeader();
-  initSlideshow();
-  initGalleries();
-  initFadeIn();
-  initHamburger();
-  initBackToTop();
-  initMapTabs();
-  initLightbox();
-  setCopyrightYear();
-  initDropdownMobile();
-  initSmoothScroll();
-});
+  /* ----------------------------------------------------------
+     ヒーロースライドショー
+  ---------------------------------------------------------- */
+  let currentSlide = 0;
+  let slideTimer = null;
+  const SLIDE_INTERVAL = 5000;
 
-/* ============================================================
-   HEADER — Scroll behavior
-   ============================================================ */
-function initHeader() {
-  const header = document.getElementById('site-header');
-  if (!header) return;
+  function initSlideshow() {
+    const slides = document.querySelectorAll('#hero-slideshow .slide');
+    const dots = document.querySelectorAll('.slide-dot');
+    if (!slides.length) return;
 
-  const onScroll = () => {
-    if (window.scrollY > 60) {
-      header.classList.add('scrolled');
-    } else {
-      header.classList.remove('scrolled');
-    }
-  };
-
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
-}
-
-/* ============================================================
-   HERO SLIDESHOW
-   ============================================================ */
-function initSlideshow() {
-  const slides = document.querySelectorAll('.hero-section .slide');
-  const dots   = document.querySelectorAll('.slide-dot');
-  if (!slides.length) return;
-
-  let current = 0;
-  let timer   = null;
-
-  function goTo(idx) {
-    slides[current].classList.remove('active');
-    dots[current]?.classList.remove('active');
-    dots[current]?.setAttribute('aria-selected', 'false');
-
-    current = (idx + slides.length) % slides.length;
-
-    slides[current].classList.add('active');
-    dots[current]?.classList.add('active');
-    dots[current]?.setAttribute('aria-selected', 'true');
-  }
-
-  function next() {
-    goTo(current + 1);
-  }
-
-  function startTimer() {
-    timer = setInterval(next, 5000);
-  }
-
-  function resetTimer() {
-    clearInterval(timer);
-    startTimer();
-  }
-
-  // Dot clicks
-  dots.forEach((dot, i) => {
-    dot.addEventListener('click', () => {
-      goTo(i);
-      resetTimer();
-    });
-  });
-
-  startTimer();
-}
-
-/* ============================================================
-   GALLERY (Thumbnail click → main image change)
-   ============================================================ */
-function initGalleries() {
-  // SUN gallery
-  setupGallery('sun-thumbs', 'sun-main-img');
-  // MOON gallery
-  setupGallery('moon-thumbs', 'moon-main-img');
-  // SMILE gallery
-  setupGallery('smile-thumbs', 'smile-main-img');
-  // SKY gallery
-  setupGallery('sky-thumbs', 'sky-main-img');
-}
-
-function setupGallery(thumbsId, mainImgId) {
-  const thumbsContainer = document.getElementById(thumbsId);
-  const mainImg         = document.getElementById(mainImgId);
-  if (!thumbsContainer || !mainImg) return;
-
-  const thumbs = thumbsContainer.querySelectorAll('.thumb');
-
-  thumbs.forEach(thumb => {
-    thumb.addEventListener('click', () => {
-      const src = thumb.getAttribute('data-src');
-      const alt = thumb.getAttribute('data-alt') || '';
-
-      if (!src) return;
-
-      // Animate main image
-      mainImg.style.opacity = '0';
-      mainImg.style.transform = 'scale(1.02)';
-
-      setTimeout(() => {
-        mainImg.src = src;
-        mainImg.alt = alt;
-        mainImg.style.opacity = '1';
-        mainImg.style.transform = 'scale(1)';
-      }, 200);
-
-      // Update active state
-      thumbs.forEach(t => t.classList.remove('active'));
-      thumb.classList.add('active');
-    });
-
-    // Keyboard support
-    thumb.setAttribute('role', 'button');
-    thumb.setAttribute('tabindex', '0');
-    thumb.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        thumb.click();
+    function goToSlide(n) {
+      slides[currentSlide].classList.remove('active');
+      if (dots[currentSlide]) {
+        dots[currentSlide].classList.remove('active');
+        dots[currentSlide].setAttribute('aria-selected', 'false');
       }
-    });
-  });
-
-  // Add CSS transition for main image
-  mainImg.style.transition = 'opacity 0.3s ease, transform 0.4s ease';
-}
-
-/* ============================================================
-   FADE-IN on scroll (Intersection Observer)
-   ============================================================ */
-function initFadeIn() {
-  const sections = document.querySelectorAll('.fade-in-section');
-  if (!sections.length) return;
-
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        // Stagger delay for cards
-        const delay = entry.target.classList.contains('property-card') ||
-                      entry.target.classList.contains('access-card') ||
-                      entry.target.classList.contains('nearby-card')
-                      ? (Array.from(entry.target.parentElement.children).indexOf(entry.target) * 80)
-                      : 0;
-
-        setTimeout(() => {
-          entry.target.classList.add('visible');
-        }, delay);
-
-        observer.unobserve(entry.target);
+      currentSlide = (n + slides.length) % slides.length;
+      slides[currentSlide].classList.add('active');
+      if (dots[currentSlide]) {
+        dots[currentSlide].classList.add('active');
+        dots[currentSlide].setAttribute('aria-selected', 'true');
       }
-    });
-  }, {
-    rootMargin: '0px 0px -80px 0px',
-    threshold: 0.1
-  });
-
-  sections.forEach(s => observer.observe(s));
-}
-
-/* ============================================================
-   HAMBURGER MENU
-   ============================================================ */
-function initHamburger() {
-  const hamburger = document.getElementById('hamburger');
-  const nav       = document.getElementById('main-nav');
-  if (!hamburger || !nav) return;
-
-  hamburger.addEventListener('click', () => {
-    const isOpen = nav.classList.toggle('open');
-    hamburger.classList.toggle('active', isOpen);
-    hamburger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-    document.body.style.overflow = isOpen ? 'hidden' : '';
-  });
-
-  // Close on nav link click
-  nav.querySelectorAll('.nav-link, .dropdown-item').forEach(link => {
-    link.addEventListener('click', () => {
-      nav.classList.remove('open');
-      hamburger.classList.remove('active');
-      hamburger.setAttribute('aria-expanded', 'false');
-      document.body.style.overflow = '';
-    });
-  });
-
-  // Close on outside click
-  document.addEventListener('click', e => {
-    if (!nav.contains(e.target) && !hamburger.contains(e.target)) {
-      nav.classList.remove('open');
-      hamburger.classList.remove('active');
-      hamburger.setAttribute('aria-expanded', 'false');
-      document.body.style.overflow = '';
     }
-  });
-}
 
-/* ============================================================
-   DROPDOWN — Mobile toggle
-   ============================================================ */
-function initDropdownMobile() {
-  const dropdownItems = document.querySelectorAll('.has-dropdown > .nav-link');
-
-  dropdownItems.forEach(link => {
-    link.addEventListener('click', e => {
-      // Only on mobile
-      if (window.innerWidth <= 1024) {
-        e.preventDefault();
-        const parent = link.parentElement;
-        parent.classList.toggle('open');
-      }
-    });
-  });
-}
-
-/* ============================================================
-   BACK TO TOP BUTTON
-   ============================================================ */
-function initBackToTop() {
-  const btn = document.getElementById('back-to-top');
-  if (!btn) return;
-
-  window.addEventListener('scroll', () => {
-    if (window.scrollY > 500) {
-      btn.classList.add('visible');
-    } else {
-      btn.classList.remove('visible');
+    function startAuto() {
+      stopAuto();
+      slideTimer = setInterval(() => goToSlide(currentSlide + 1), SLIDE_INTERVAL);
     }
-  }, { passive: true });
 
-  btn.addEventListener('click', () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  });
-}
+    function stopAuto() {
+      if (slideTimer) clearInterval(slideTimer);
+    }
 
-/* ============================================================
-   MAP TABS
-   ============================================================ */
-function initMapTabs() {
-  const tabs    = document.querySelectorAll('.map-tab');
-  const panels  = document.querySelectorAll('.map-panel');
-  if (!tabs.length) return;
-
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      const property = tab.getAttribute('data-property');
-
-      tabs.forEach(t => t.classList.remove('active'));
-      panels.forEach(p => p.classList.remove('active'));
-
-      tab.classList.add('active');
-      const targetPanel = document.getElementById(`map-${property}`);
-      if (targetPanel) targetPanel.classList.add('active');
+    dots.forEach((dot, i) => {
+      dot.addEventListener('click', () => {
+        goToSlide(i);
+        startAuto();
+      });
     });
-  });
-}
 
-/* ============================================================
-   LIGHTBOX
-   ============================================================ */
-function initLightbox() {
-  const lightbox     = document.getElementById('lightbox');
-  const lightboxImg  = document.getElementById('lightbox-img');
-  const closeBtn     = document.getElementById('lightbox-close');
-  const prevBtn      = document.getElementById('lightbox-prev');
-  const nextBtn      = document.getElementById('lightbox-next');
-  if (!lightbox) return;
+    // Touch/swipe support
+    let touchStartX = 0;
+    const hero = document.getElementById('hero');
+    if (hero) {
+      hero.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].clientX; }, { passive: true });
+      hero.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(dx) > 50) {
+          goToSlide(dx < 0 ? currentSlide + 1 : currentSlide - 1);
+          startAuto();
+        }
+      }, { passive: true });
+    }
 
-  let currentImages  = [];
-  let currentIndex   = 0;
+    // Pause when not visible
+    document.addEventListener('visibilitychange', () => {
+      document.hidden ? stopAuto() : startAuto();
+    });
 
-  function openLightbox(images, index) {
-    currentImages = images;
-    currentIndex  = index;
-    updateLightboxImage();
-    lightbox.classList.add('open');
+    startAuto();
+  }
+
+  /* ----------------------------------------------------------
+     サムネイルギャラリー（各物件）
+  ---------------------------------------------------------- */
+  function initGalleries() {
+    // Find all thumbnail containers
+    document.querySelectorAll('.gallery-thumbs').forEach(thumbContainer => {
+      const galleryId = thumbContainer.id; // e.g. "sun-thumbs"
+      const mainImgId = galleryId.replace('-thumbs', '-main-img');
+      const mainImg = document.getElementById(mainImgId);
+      if (!mainImg) return;
+
+      thumbContainer.querySelectorAll('.thumb').forEach(thumb => {
+        thumb.addEventListener('click', () => {
+          const src = thumb.dataset.src;
+          const alt = thumb.dataset.alt;
+          if (!src) return;
+
+          // Fade effect
+          mainImg.style.opacity = '0';
+          setTimeout(() => {
+            mainImg.src = src;
+            mainImg.alt = alt || '';
+            mainImg.style.opacity = '1';
+          }, 200);
+
+          // Active state
+          thumbContainer.querySelectorAll('.thumb').forEach(t => t.classList.remove('active'));
+          thumb.classList.add('active');
+        });
+      });
+    });
+  }
+
+  /* ----------------------------------------------------------
+     ライトボックス
+  ---------------------------------------------------------- */
+  let lightboxImages = [];
+  let lightboxIndex = 0;
+
+  function createLightbox() {
+    if (document.getElementById('kuroten-lightbox')) return;
+    const lb = document.createElement('div');
+    lb.id = 'kuroten-lightbox';
+    lb.setAttribute('role', 'dialog');
+    lb.setAttribute('aria-modal', 'true');
+    lb.setAttribute('aria-label', '画像拡大表示');
+    lb.innerHTML = `
+      <div class="lb-overlay"></div>
+      <div class="lb-content">
+        <button class="lb-close" aria-label="閉じる"><i class="fas fa-times"></i></button>
+        <button class="lb-prev" aria-label="前の画像"><i class="fas fa-chevron-left"></i></button>
+        <button class="lb-next" aria-label="次の画像"><i class="fas fa-chevron-right"></i></button>
+        <div class="lb-img-wrap">
+          <img class="lb-img" src="" alt="">
+        </div>
+        <div class="lb-caption"></div>
+        <div class="lb-counter"></div>
+      </div>
+    `;
+    document.body.appendChild(lb);
+
+    lb.querySelector('.lb-overlay').addEventListener('click', closeLightbox);
+    lb.querySelector('.lb-close').addEventListener('click', closeLightbox);
+    lb.querySelector('.lb-prev').addEventListener('click', () => navigateLightbox(-1));
+    lb.querySelector('.lb-next').addEventListener('click', () => navigateLightbox(1));
+
+    document.addEventListener('keydown', e => {
+      if (!lb.classList.contains('active')) return;
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft') navigateLightbox(-1);
+      if (e.key === 'ArrowRight') navigateLightbox(1);
+    });
+
+    // Touch swipe
+    let startX = 0;
+    lb.addEventListener('touchstart', e => { startX = e.changedTouches[0].clientX; }, { passive: true });
+    lb.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - startX;
+      if (Math.abs(dx) > 50) navigateLightbox(dx < 0 ? 1 : -1);
+    }, { passive: true });
+  }
+
+  function openLightbox(triggers, index) {
+    lightboxImages = triggers;
+    lightboxIndex = index;
+    showLightboxImage();
+    const lb = document.getElementById('kuroten-lightbox');
+    lb.classList.add('active');
     document.body.style.overflow = 'hidden';
+    lb.querySelector('.lb-close').focus();
   }
 
   function closeLightbox() {
-    lightbox.classList.remove('open');
+    const lb = document.getElementById('kuroten-lightbox');
+    lb.classList.remove('active');
     document.body.style.overflow = '';
   }
 
-  function updateLightboxImage() {
-    if (!currentImages.length) return;
-    const img = currentImages[currentIndex];
-    lightboxImg.style.opacity = '0';
-    setTimeout(() => {
-      lightboxImg.src = img.src;
-      lightboxImg.alt = img.alt;
-      lightboxImg.style.opacity = '1';
-    }, 150);
+  function navigateLightbox(dir) {
+    lightboxIndex = (lightboxIndex + dir + lightboxImages.length) % lightboxImages.length;
+    showLightboxImage();
   }
 
-  function goNext() {
-    currentIndex = (currentIndex + 1) % currentImages.length;
-    updateLightboxImage();
+  function showLightboxImage() {
+    const item = lightboxImages[lightboxIndex];
+    const lb = document.getElementById('kuroten-lightbox');
+    const img = lb.querySelector('.lb-img');
+    const caption = lb.querySelector('.lb-caption');
+    const counter = lb.querySelector('.lb-counter');
+
+    img.style.opacity = '0';
+    img.src = item.href;
+    img.alt = item.alt || '';
+    img.onload = () => { img.style.opacity = '1'; };
+
+    caption.textContent = item.alt || '';
+    counter.textContent = `${lightboxIndex + 1} / ${lightboxImages.length}`;
+
+    // Prev/next visibility
+    lb.querySelector('.lb-prev').style.display = lightboxImages.length <= 1 ? 'none' : '';
+    lb.querySelector('.lb-next').style.display = lightboxImages.length <= 1 ? 'none' : '';
   }
 
-  function goPrev() {
-    currentIndex = (currentIndex - 1 + currentImages.length) % currentImages.length;
-    updateLightboxImage();
-  }
+  function initLightbox() {
+    createLightbox();
 
-  lightboxImg.style.transition = 'opacity 0.2s ease';
+    // Group triggers by data-gallery
+    const galleries = {};
+    document.querySelectorAll('.lightbox-trigger').forEach(trigger => {
+      const group = trigger.dataset.gallery || 'default';
+      if (!galleries[group]) galleries[group] = [];
+      galleries[group].push(trigger);
+    });
 
-  closeBtn?.addEventListener('click', closeLightbox);
-  nextBtn?.addEventListener('click', goNext);
-  prevBtn?.addEventListener('click', goPrev);
-
-  lightbox.addEventListener('click', e => {
-    if (e.target === lightbox) closeLightbox();
-  });
-
-  // Keyboard
-  document.addEventListener('keydown', e => {
-    if (!lightbox.classList.contains('open')) return;
-    if (e.key === 'Escape') closeLightbox();
-    if (e.key === 'ArrowRight') goNext();
-    if (e.key === 'ArrowLeft') goPrev();
-  });
-
-  // Attach to gallery main images
-  document.querySelectorAll('.gallery-main').forEach(galleryEl => {
-    const mainImg   = galleryEl.querySelector('.gallery-main-img');
-    const thumbsId  = galleryEl.closest('.property-gallery')
-                        ?.querySelector('.gallery-thumbs')?.id;
-    if (!mainImg) return;
-
-    mainImg.style.cursor = 'zoom-in';
-
-    mainImg.addEventListener('click', () => {
-      const thumbs  = thumbsId ? document.getElementById(thumbsId) : null;
-      const imgs    = [];
-
-      if (thumbs) {
-        thumbs.querySelectorAll('.thumb').forEach(t => {
-          const src = t.getAttribute('data-src');
-          const alt = t.getAttribute('data-alt') || '';
-          if (src) imgs.push({ src, alt });
+    Object.values(galleries).forEach(triggers => {
+      triggers.forEach((trigger, i) => {
+        trigger.addEventListener('click', e => {
+          e.preventDefault();
+          const items = triggers.map(t => ({ href: t.href, alt: t.querySelector('img')?.alt || '' }));
+          openLightbox(items, i);
         });
-      }
-
-      if (!imgs.length) {
-        imgs.push({ src: mainImg.src, alt: mainImg.alt });
-      }
-
-      // Find current index
-      const currentSrc = mainImg.src;
-      let idx = imgs.findIndex(i => i.src === currentSrc) || 0;
-      if (idx < 0) idx = 0;
-
-      openLightbox(imgs, idx);
+      });
     });
-  });
+  }
 
-  // ── .luminous ギャラリーリンク（設備・寝室など）──────────────────
-  document.querySelectorAll('a.luminous').forEach(link => {
-    link.addEventListener('click', e => {
-      e.preventDefault();
-      const galleryName = link.getAttribute('data-luminous-gallery');
+  /* ----------------------------------------------------------
+     スクロールアニメーション（fade-in-section）
+  ---------------------------------------------------------- */
+  function initScrollAnimation() {
+    const elements = document.querySelectorAll('.fade-in-section');
+    if (!elements.length) return;
 
-      // 同じギャラリーグループ内のリンクをすべて収集
-      const allLinks = galleryName
-        ? Array.from(document.querySelectorAll(`a.luminous[data-luminous-gallery="${galleryName}"]`))
-        : [link];
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
 
-      const imgs = allLinks.map(a => ({
-        src: a.getAttribute('href'),
-        alt: a.querySelector('img')?.alt || ''
-      }));
-
-      const idx = allLinks.indexOf(link);
-      openLightbox(imgs, idx >= 0 ? idx : 0);
-    });
-  });
-}
-
-/* ============================================================
-   SMOOTH SCROLL for anchor links
-   ============================================================ */
-function initSmoothScroll() {
-  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function(e) {
-      const target = document.querySelector(this.getAttribute('href'));
-      if (!target) return;
-
-      e.preventDefault();
-      const headerOffset = 80;
-      const top = target.getBoundingClientRect().top + window.scrollY - headerOffset;
-
-      window.scrollTo({ top, behavior: 'smooth' });
-    });
-  });
-}
-
-/* ============================================================
-   COPYRIGHT YEAR
-   ============================================================ */
-function setCopyrightYear() {
-  const el = document.getElementById('current-year');
-  if (el) el.textContent = new Date().getFullYear();
-}
-
-/* ============================================================
-   Touch swipe support for slideshow
-   ============================================================ */
-(function initTouchSlide() {
-  const hero = document.querySelector('.hero-section');
-  if (!hero) return;
-
-  let startX = 0;
-  let isDragging = false;
-
-  hero.addEventListener('touchstart', e => {
-    startX = e.touches[0].clientX;
-    isDragging = true;
-  }, { passive: true });
-
-  hero.addEventListener('touchend', e => {
-    if (!isDragging) return;
-    const diff = startX - e.changedTouches[0].clientX;
-    if (Math.abs(diff) > 50) {
-      // Trigger slide change
-      const dots = document.querySelectorAll('.slide-dot');
-      const activeDot = document.querySelector('.slide-dot.active');
-      const allDots = Array.from(dots);
-      const idx = allDots.indexOf(activeDot);
-
-      if (diff > 0) {
-        dots[(idx + 1) % dots.length]?.click();
-      } else {
-        dots[(idx - 1 + dots.length) % dots.length]?.click();
-      }
+      elements.forEach(el => observer.observe(el));
+    } else {
+      // Fallback: show all immediately
+      elements.forEach(el => el.classList.add('is-visible'));
     }
-    isDragging = false;
-  }, { passive: true });
+  }
+
+  /* ----------------------------------------------------------
+     ヘッダー スクロール効果
+  ---------------------------------------------------------- */
+  function initHeader() {
+    const header = document.getElementById('site-header');
+    if (!header) return;
+
+    let lastScroll = 0;
+    window.addEventListener('scroll', () => {
+      const scrollY = window.scrollY;
+      if (scrollY > 60) {
+        header.classList.add('scrolled');
+      } else {
+        header.classList.remove('scrolled');
+      }
+      lastScroll = scrollY;
+    }, { passive: true });
+  }
+
+  /* ----------------------------------------------------------
+     ハンバーガーメニュー
+  ---------------------------------------------------------- */
+  function initHamburger() {
+    const hamburger = document.getElementById('hamburger');
+    const nav = document.getElementById('main-nav');
+    if (!hamburger || !nav) return;
+
+    hamburger.addEventListener('click', () => {
+      const expanded = hamburger.getAttribute('aria-expanded') === 'true';
+      hamburger.setAttribute('aria-expanded', String(!expanded));
+      hamburger.classList.toggle('open');
+      nav.classList.toggle('open');
+      document.body.classList.toggle('nav-open');
+    });
+
+    // Close on nav link click
+    nav.querySelectorAll('.nav-link, .dropdown-item').forEach(link => {
+      link.addEventListener('click', () => {
+        hamburger.setAttribute('aria-expanded', 'false');
+        hamburger.classList.remove('open');
+        nav.classList.remove('open');
+        document.body.classList.remove('nav-open');
+      });
+    });
+
+    // Close on outside click
+    document.addEventListener('click', e => {
+      if (!hamburger.contains(e.target) && !nav.contains(e.target)) {
+        hamburger.setAttribute('aria-expanded', 'false');
+        hamburger.classList.remove('open');
+        nav.classList.remove('open');
+        document.body.classList.remove('nav-open');
+      }
+    });
+  }
+
+  /* ----------------------------------------------------------
+     スムーズスクロール
+  ---------------------------------------------------------- */
+  function initSmoothScroll() {
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        const href = this.getAttribute('href');
+        if (href === '#' || href === '#!') return;
+        const target = document.querySelector(href);
+        if (!target) return;
+        e.preventDefault();
+        const headerHeight = document.getElementById('site-header')?.offsetHeight || 80;
+        const top = target.getBoundingClientRect().top + window.scrollY - headerHeight;
+        window.scrollTo({ top, behavior: 'smooth' });
+      });
+    });
+  }
+
+  /* ----------------------------------------------------------
+     Back to Top ボタン
+  ---------------------------------------------------------- */
+  function initBackToTop() {
+    const btn = document.getElementById('back-to-top');
+    if (!btn) return;
+
+    window.addEventListener('scroll', () => {
+      btn.classList.toggle('visible', window.scrollY > 400);
+    }, { passive: true });
+
+    btn.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  /* ----------------------------------------------------------
+     アクセスマップ タブ切替
+  ---------------------------------------------------------- */
+  function initMapTabs() {
+    const tabBtns = document.querySelectorAll('.map-tab-btn');
+    const mapPanels = document.querySelectorAll('.map-panel');
+    if (!tabBtns.length) return;
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.tab;
+
+        tabBtns.forEach(b => {
+          b.classList.remove('active');
+          b.setAttribute('aria-selected', 'false');
+        });
+        mapPanels.forEach(p => p.classList.remove('active'));
+
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+        const panel = document.getElementById('map-' + target);
+        if (panel) panel.classList.add('active');
+      });
+    });
+  }
+
+  /* ----------------------------------------------------------
+     ドロップダウン（PC ナビ）
+  ---------------------------------------------------------- */
+  function initDropdowns() {
+    document.querySelectorAll('.nav-item.has-dropdown').forEach(item => {
+      const link = item.querySelector('.nav-link');
+      const dropdown = item.querySelector('.dropdown-menu');
+      if (!dropdown) return;
+
+      link.setAttribute('aria-haspopup', 'true');
+      link.setAttribute('aria-expanded', 'false');
+
+      item.addEventListener('mouseenter', () => {
+        link.setAttribute('aria-expanded', 'true');
+        dropdown.style.display = 'block';
+      });
+      item.addEventListener('mouseleave', () => {
+        link.setAttribute('aria-expanded', 'false');
+        dropdown.style.display = '';
+      });
+
+      // Touch
+      link.addEventListener('click', e => {
+        if (window.innerWidth <= 900) return; // handled by mobile nav
+        e.preventDefault();
+        const open = link.getAttribute('aria-expanded') === 'true';
+        link.setAttribute('aria-expanded', String(!open));
+      });
+    });
+  }
+
+  /* ----------------------------------------------------------
+     ライトボックス CSS injection (公式スタイルがない場合)
+  ---------------------------------------------------------- */
+  function injectLightboxCSS() {
+    if (document.getElementById('lb-style')) return;
+    const style = document.createElement('style');
+    style.id = 'lb-style';
+    style.textContent = `
+      #kuroten-lightbox {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 50000;
+        align-items: center;
+        justify-content: center;
+      }
+      #kuroten-lightbox.active { display: flex; }
+      #kuroten-lightbox .lb-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.92);
+        backdrop-filter: blur(4px);
+      }
+      #kuroten-lightbox .lb-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        max-width: 95vw;
+        max-height: 95vh;
+      }
+      #kuroten-lightbox .lb-img-wrap {
+        max-width: 90vw;
+        max-height: 80vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #kuroten-lightbox .lb-img {
+        max-width: 90vw;
+        max-height: 80vh;
+        object-fit: contain;
+        border-radius: 8px;
+        transition: opacity 0.3s;
+      }
+      #kuroten-lightbox .lb-close {
+        position: fixed;
+        top: 20px; right: 20px;
+        background: rgba(255,255,255,0.15);
+        border: none;
+        color: #fff;
+        width: 44px; height: 44px;
+        border-radius: 50%;
+        font-size: 1.1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+        z-index: 2;
+      }
+      #kuroten-lightbox .lb-close:hover { background: rgba(255,255,255,0.3); }
+      #kuroten-lightbox .lb-prev,
+      #kuroten-lightbox .lb-next {
+        position: fixed;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255,255,255,0.12);
+        border: none;
+        color: #fff;
+        width: 48px; height: 48px;
+        border-radius: 50%;
+        font-size: 1.2rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+        z-index: 2;
+      }
+      #kuroten-lightbox .lb-prev { left: 16px; }
+      #kuroten-lightbox .lb-next { right: 16px; }
+      #kuroten-lightbox .lb-prev:hover,
+      #kuroten-lightbox .lb-next:hover { background: rgba(212,175,55,0.4); }
+      #kuroten-lightbox .lb-caption {
+        color: rgba(255,255,255,0.8);
+        font-size: 0.88rem;
+        margin-top: 12px;
+        text-align: center;
+        max-width: 600px;
+      }
+      #kuroten-lightbox .lb-counter {
+        color: rgba(255,255,255,0.4);
+        font-size: 0.78rem;
+        margin-top: 6px;
+      }
+      @media (max-width: 600px) {
+        #kuroten-lightbox .lb-prev { left: 6px; }
+        #kuroten-lightbox .lb-next { right: 6px; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  /* ----------------------------------------------------------
+     メインナビ スクロールアクティブ（セクションハイライト）
+  ---------------------------------------------------------- */
+  function initNavHighlight() {
+    const sections = document.querySelectorAll('section[id]');
+    const navLinks = document.querySelectorAll('.nav-link');
+    if (!sections.length || !navLinks.length) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          navLinks.forEach(link => {
+            const href = link.getAttribute('href');
+            link.classList.toggle('active', href === '#' + entry.target.id);
+          });
+        }
+      });
+    }, { rootMargin: '-30% 0px -60% 0px' });
+
+    sections.forEach(s => observer.observe(s));
+  }
+
+  /* ----------------------------------------------------------
+     初期化
+  ---------------------------------------------------------- */
+  function init() {
+    injectLightboxCSS();
+    initSlideshow();
+    initGalleries();
+    initLightbox();
+    initScrollAnimation();
+    initHeader();
+    initHamburger();
+    initSmoothScroll();
+    initBackToTop();
+    initMapTabs();
+    initDropdowns();
+    initNavHighlight();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();
